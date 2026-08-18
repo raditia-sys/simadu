@@ -1,0 +1,22 @@
+Options -Indexes
+
+RewriteEngine On
+
+# Allow direct access to existing files and directories
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Route all other requests to index.php
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Security headers
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "DENY"
+Header always set X-XSS-Protection "1; mode=block"
+
+# CORS for development (Vite dev server proxy will handle production)
+SetEnvIf Origin "http://localhost:5173" CORS_ALLOWED=1
+Header always set Access-Control-Allow-Origin "http://localhost:5173" env=CORS_ALLOWED
+Header always set Access-Control-Allow-Credentials "true" env=CORS_ALLOWED
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" env=CORS_ALLOWED
+Header always set Access-Control-Allow-Headers "Content-Type, X-Requested-With" env=CORS_ALLOWED

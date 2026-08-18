@@ -1,0 +1,138 @@
+/* ─── Tailwind Directives ─────────────────────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base Styles ─────────────────────────────────────────────────────────── */
+@layer base {
+  /* Apply font-body as the default body font */
+  html {
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Smooth dark/light mode transitions */
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  body {
+    @apply bg-bg-page text-text-primary;
+    @apply dark:bg-dark-bg-page dark:text-dark-text-primary;
+  }
+
+  /* Heading font */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    @apply font-semibold;
+  }
+
+  /* Tabular numerals for data tables */
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Smooth scrolling */
+  * {
+    scroll-behavior: smooth;
+  }
+
+  /* Focus ring — accessible but styled to match palette */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-navy ring-offset-2;
+    @apply dark:ring-dark-navy dark:ring-offset-dark-bg-page;
+  }
+}
+
+/* ─── Reusable Component Classes ─────────────────────────────────────────── */
+@layer components {
+  /* Card surface */
+  .card {
+    @apply bg-surface rounded-2xl shadow-soft border border-border-soft;
+    @apply dark:bg-dark-surface dark:border-dark-border-soft dark:shadow-none;
+  }
+
+  /* Sidebar item */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+           text-text-secondary transition-all duration-150
+           hover:bg-navy/5 hover:text-navy;
+    @apply dark:text-dark-text-secondary dark:hover:bg-dark-navy/10 dark:hover:text-dark-text-primary;
+  }
+
+  .nav-item.active {
+    @apply bg-navy/10 text-navy font-semibold;
+    @apply dark:bg-dark-navy/15 dark:text-dark-navy;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           bg-accent-orange text-white text-sm font-medium rounded-xl
+           shadow-soft-sm transition-all duration-150
+           hover:brightness-105 active:scale-[0.98];
+    @apply dark:bg-dark-accent-orange;
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           bg-bg-page text-text-primary text-sm font-medium rounded-xl
+           border border-border-soft shadow-soft-sm transition-all duration-150
+           hover:bg-navy/5 active:scale-[0.98];
+    @apply dark:bg-dark-bg-page dark:text-dark-text-primary dark:border-dark-border-soft
+           dark:hover:bg-dark-navy/10;
+  }
+
+  /* Status badge */
+  .status-belum-mulai {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+           bg-status-neutral/20 text-text-secondary;
+    @apply dark:bg-dark-status-neutral/30 dark:text-dark-text-secondary;
+  }
+
+  .status-berjalan {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+           bg-accent-orange/15 text-accent-orange;
+    @apply dark:bg-dark-accent-orange/20 dark:text-dark-accent-orange;
+  }
+
+  .status-selesai {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+           bg-navy/10 text-navy;
+    @apply dark:bg-dark-navy/20 dark:text-dark-navy;
+  }
+
+  /* Page header */
+  .page-header {
+    @apply font-heading text-2xl font-semibold text-text-primary;
+    @apply dark:text-dark-text-primary;
+    letter-spacing: -0.01em;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-border-soft;
+    @apply dark:border-dark-border-soft;
+  }
+}
+
+/* ─── Utilities ────────────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Sidebar width tokens */
+  .sidebar-w-expanded { width: 240px; }
+  .sidebar-w-collapsed { width: 64px; }
+
+  /* Smooth transition for sidebar collapse */
+  .sidebar-transition {
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Topbar height token */
+  .topbar-h { height: 56px; }
+
+  /* Hide scrollbar but keep scroll */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}
