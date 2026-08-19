@@ -165,7 +165,58 @@ class DokumenController
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // DOWNLOAD — stream file langsung
+    // STORE LINK — simpan tautan eksternal/link entri
+    // ─────────────────────────────────────────────────────────────────────────
+    public static function storeLink(): void
+    {
+        requireAuth();
+        $body = requestBody();
+        validateRequired($body, [
+            'nama_file' => 'Nama Tautan',
+            'url'       => 'URL Tautan',
+        ]);
+
+        $namaFile  = clean($body['nama_file']);
+        $url       = clean($body['url']);
+        $kategori  = clean($body['kategori'] ?? 'Tautan Entri');
+        $deskripsi = clean($body['deskripsi'] ?? '');
+        $surveiId  = !empty($body['survei_id']) ? (int)$body['survei_id'] : null;
+        $userId    = $_SESSION['user']['id'] ?? null;
+
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            respond(false, null, 'URL Tautan tidak valid. Masukkan URL lengkap (misal: https://...)', 422);
+        }
+
+        $pdo = Database::connect();
+        $stmt = $pdo->prepare("
+            INSERT INTO dokumen (nama_file, path, kategori, deskripsi, survei_id, mime_type, ukuran_byte, uploaded_by, uploaded_at)
+            VALUES (?, ?, ?, ?, ?, 'text/url', 0, ?, NOW())
+        ");
+        $stmt->execute([
+            $namaFile,
+            $url,
+            $kategori ?: 'Tautan Entri',
+            $deskripsi,
+            $surveiId,
+            $userId,
+        ]);
+        $id = (int)$pdo->lastInsertId();
+
+        // Jika survei_id diisi dan tautan_entri_data di master_survei masih kosong, perbarui otomatis
+        if ($surveiId) {
+            $pdo->prepare("UPDATE master_survei SET tautan_entri_data = ? WHERE id = ? AND (tautan_entri_data IS NULL OR tautan_entri_data = '')")
+                ->execute([$url, $surveiId]);
+        }
+
+        logActivity($pdo, $userId, 'tambah_link_dokumen', 'dokumen', $id, 'Tambah link dokumen: ' . $namaFile);
+
+        $stmt2 = $pdo->prepare('SELECT * FROM dokumen WHERE id = ?');
+        $stmt2->execute([$id]);
+        respond(true, $stmt2->fetch(), 'Tautan entri berhasil ditambahkan.', 201);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DOWNLOAD — stream file langsung / redirect link
     // ─────────────────────────────────────────────────────────────────────────
     public static function download(int $id): void
     {
@@ -177,6 +228,11 @@ class DokumenController
         $doc = $stmt->fetch();
 
         if (!$doc) respond(false, null, 'Dokumen tidak ditemukan.', 404);
+
+        if ($doc['mime_type'] === 'text/url' || str_starts_with($doc['path'], 'http://') || str_starts_with($doc['path'], 'https://')) {
+            header('Location: ' . $doc['path']);
+            exit;
+        }
 
         $filePath = ROOT_DIR . '/' . $doc['path'];
         if (!file_exists($filePath)) {

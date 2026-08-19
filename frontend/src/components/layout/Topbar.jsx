@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -18,6 +19,7 @@ const BREADCRUMB_MAP = {
   '/se2026/persiapan':        ['Sensus Ekonomi', 'Persiapan'],
   '/se2026/pelaksanaan':      ['Sensus Ekonomi', 'Pelaksanaan'],
   '/se2026/pengolahan':       ['Sensus Ekonomi', 'Pengolahan & Diseminasi'],
+  '/kelola-tugas':            ['Kelola Tugas Kegiatan'],
   '/dokumen':                 ['Manajemen Dokumen'],
   '/perjalanan':              ['Laporan Perjalanan Dinas'],
   '/kalender':                ['Kalender & Agenda'],
@@ -36,6 +38,11 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
   const { user, logout } = useAuth();
 
   const crumbs = BREADCRUMB_MAP[location.pathname] || ['Halaman'];
+
+  useEffect(() => {
+    const pageTitle = crumbs.length > 0 ? crumbs[crumbs.length - 1] : '';
+    document.title = pageTitle ? `SIMADU - ${pageTitle}` : 'SIMADU';
+  }, [location.pathname, crumbs]);
 
   async function handleLogout() {
     await logout();

@@ -141,6 +141,7 @@ $routes = [
     'GET /api/dokumen/download/{id}' => [DokumenController::class, 'download'],
     'GET /api/dokumen'               => [DokumenController::class, 'index'],
     'POST /api/dokumen/upload'       => [DokumenController::class, 'upload'],
+    'POST /api/dokumen/link'         => [DokumenController::class, 'storeLink'],
     'PUT /api/dokumen/{id}'          => [DokumenController::class, 'update'],
     'DELETE /api/dokumen/{id}'       => [DokumenController::class, 'delete'],
 

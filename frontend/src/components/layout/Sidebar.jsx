@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 // ─── Icon components (minimal SVG, no external dependency) ───────────────────
@@ -27,9 +27,18 @@ const ICONS = {
   circle:       'M12 4.5v15m7.5-7.5h-15', // placeholder for sub-items
 };
 
+// ─── Indentation Padding Map ──────────────────────────────────────────────────
+const PADDING_MAP = {
+  0: 'pl-3',
+  1: 'pl-7',
+  2: 'pl-11',
+  3: 'pl-[3.75rem]', // 60px — deeper indent for items inside sub-folders like SHPed
+  4: 'pl-[4.5rem]',
+};
+
 // ─── NavItem — leaf navigation link ──────────────────────────────────────────
 function NavItem({ to, icon, label, indent = 0 }) {
-  const paddingLeft = indent === 0 ? 'pl-3' : indent === 1 ? 'pl-7' : 'pl-11';
+  const paddingLeft = PADDING_MAP[indent] || 'pl-[4.5rem]';
 
   return (
     <NavLink
@@ -39,69 +48,100 @@ function NavItem({ to, icon, label, indent = 0 }) {
       }
     >
       {icon && <Icon path={ICONS[icon] || ICONS.circle} className="w-4 h-4 flex-shrink-0" />}
+      {!icon && indent >= 3 && (
+        <span className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 dark:bg-dark-text-secondary/40 flex-shrink-0 mr-0.5" />
+      )}
       <span className="truncate">{label}</span>
     </NavLink>
   );
 }
 
 // ─── NavGroup — collapsible section ──────────────────────────────────────────
-function NavGroup({ icon, label, indent = 0, defaultOpen = false, children }) {
+function NavGroup({ icon, label, indent = 0, activePrefixes = [], children }) {
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const isChildActive = activePrefixes.some((prefix) => location.pathname.startsWith(prefix));
+  const [isOpen, setIsOpen] = useState(isChildActive);
 
-  // Auto-expand if a child route is active
-  // (simple check — more robust version can use useEffect)
-  const paddingLeft = indent === 0 ? 'pl-3' : 'pl-7';
+  // Auto-collapse when user navigates to a route outside this group
+  useEffect(() => {
+    setIsOpen(isChildActive);
+  }, [location.pathname, isChildActive]);
+
+  const paddingLeft = PADDING_MAP[indent] || 'pl-[4.5rem]';
 
   return (
     <div>
       <button
         onClick={() => setIsOpen((o) => !o)}
-        className={`nav-item w-full ${paddingLeft} justify-between group`}
+        className={`nav-item w-full ${paddingLeft} justify-between group ${
+          isChildActive ? 'font-medium text-navy dark:text-dark-navy' : ''
+        }`}
       >
         <span className="flex items-center gap-3 min-w-0">
           {icon && <Icon path={ICONS[icon] || ICONS.folder} className="w-4 h-4 flex-shrink-0" />}
           <span className="truncate">{label}</span>
         </span>
         <Icon
-          path={isOpen ? ICONS.chevronDown : ICONS.chevronRight}
-          className="w-3.5 h-3.5 flex-shrink-0 opacity-60 transition-transform duration-200"
+          path={ICONS.chevronRight}
+          className={`w-3.5 h-3.5 flex-shrink-0 opacity-60 transition-transform duration-300 ease-in-out ${
+            isOpen ? 'rotate-90' : 'rotate-0'
+          }`}
         />
       </button>
-      {isOpen && (
-        <div className="mt-0.5 space-y-0.5">
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          isOpen ? 'grid-rows-[1fr] opacity-100 mt-0.5' : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'
+        }`}
+      >
+        <div className="overflow-hidden space-y-0.5">
           {children}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
 // ─── NavFolder — non-link folder (like SHPed) ────────────────────────────────
-function NavFolder({ label, indent = 1, children }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const paddingLeft = indent === 1 ? 'pl-7' : 'pl-11';
+function NavFolder({ label, indent = 1, activePrefixes = [], children }) {
+  const location = useLocation();
+  const isChildActive = activePrefixes.some((prefix) => location.pathname.startsWith(prefix));
+  const [isOpen, setIsOpen] = useState(isChildActive);
+
+  // Auto-collapse when user navigates to a route outside this folder
+  useEffect(() => {
+    setIsOpen(isChildActive);
+  }, [location.pathname, isChildActive]);
+
+  const paddingLeft = PADDING_MAP[indent] || 'pl-[4.5rem]';
 
   return (
     <div>
       <button
         onClick={() => setIsOpen((o) => !o)}
-        className={`nav-item w-full ${paddingLeft} justify-between`}
+        className={`nav-item w-full ${paddingLeft} justify-between ${
+          isChildActive ? 'font-medium text-navy dark:text-dark-navy' : ''
+        }`}
       >
         <span className="flex items-center gap-3 min-w-0">
           <Icon path={ICONS.folder} className="w-4 h-4 flex-shrink-0 opacity-70" />
           <span className="truncate">{label}</span>
         </span>
         <Icon
-          path={isOpen ? ICONS.chevronDown : ICONS.chevronRight}
-          className="w-3.5 h-3.5 flex-shrink-0 opacity-60"
+          path={ICONS.chevronRight}
+          className={`w-3.5 h-3.5 flex-shrink-0 opacity-60 transition-transform duration-300 ease-in-out ${
+            isOpen ? 'rotate-90' : 'rotate-0'
+          }`}
         />
       </button>
-      {isOpen && (
-        <div className="mt-0.5 space-y-0.5">
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          isOpen ? 'grid-rows-[1fr] opacity-100 mt-0.5' : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'
+        }`}
+      >
+        <div className="overflow-hidden space-y-0.5">
           {children}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -203,16 +243,16 @@ export default function Sidebar({ collapsed = false, userRole = 'superadmin' }) 
         <NavItem to="/dashboard" icon="dashboard" label="Dasbor Utama" />
 
         {/* ── Kegiatan Statistik ── */}
-        <NavGroup icon="kegiatan" label="Kegiatan Statistik" defaultOpen={false}>
+        <NavGroup icon="kegiatan" label="Kegiatan Statistik" activePrefixes={['/statistik', '/harga', '/ktip']}>
 
           {/* Statistik Distribusi */}
-          <NavGroup label="Statistik Distribusi" indent={1} defaultOpen={false}>
+          <NavGroup label="Statistik Distribusi" indent={1} activePrefixes={['/statistik']}>
             <NavItem to="/statistik/sapb" label="SAPB" indent={2} />
           </NavGroup>
 
           {/* Statistik Harga */}
-          <NavGroup label="Statistik Harga" indent={1} defaultOpen={false}>
-            <NavFolder label="SHPed" indent={2}>
+          <NavGroup label="Statistik Harga" indent={1} activePrefixes={['/harga']}>
+            <NavFolder label="SHPed" indent={2} activePrefixes={['/harga/hd', '/harga/hkd']}>
               <NavItem to="/harga/hd"  label="HD"  indent={3} />
               <NavItem to="/harga/hkd" label="HKD" indent={3} />
             </NavFolder>
@@ -222,7 +262,7 @@ export default function Sidebar({ collapsed = false, userRole = 'superadmin' }) 
           </NavGroup>
 
           {/* KTIP */}
-          <NavGroup label="KTIP" indent={1} defaultOpen={false}>
+          <NavGroup label="KTIP" indent={1} activePrefixes={['/ktip']}>
             <NavItem to="/ktip/bumd" label="BUMD"    indent={2} />
             <NavItem to="/ktip/slk"  label="SLK-KSP" indent={2} />
             <NavItem to="/ktip/k3"   label="K3"      indent={2} />
@@ -233,7 +273,7 @@ export default function Sidebar({ collapsed = false, userRole = 'superadmin' }) 
         </NavGroup>
 
         {/* ── Sensus Ekonomi ── */}
-        <NavGroup icon="sensus" label="Sensus Ekonomi" defaultOpen={false}>
+        <NavGroup icon="sensus" label="Sensus Ekonomi" activePrefixes={['/se2026']}>
           <NavItem to="/se2026/persiapan"   label="Persiapan"              indent={1} />
           <NavItem to="/se2026/pelaksanaan" label="Pelaksanaan"            indent={1} />
           <NavItem to="/se2026/pengolahan"  label="Pengolahan & Diseminasi" indent={1} />
@@ -251,7 +291,7 @@ export default function Sidebar({ collapsed = false, userRole = 'superadmin' }) 
               <SectionLabel label="Administrasi" />
               <NavItem to="/log" icon="log" label="Log Aktivitas" />
 
-              <NavGroup icon="master" label="Master Data" defaultOpen={false}>
+              <NavGroup icon="master" label="Master Data" activePrefixes={['/master']}>
                 <NavItem to="/master/wilayah"  label="Master Wilayah"  indent={1} />
                 <NavItem to="/master/pegawai"  label="Master Pegawai"  indent={1} />
                 <NavItem to="/master/mitra"    label="Master Mitra"    indent={1} />

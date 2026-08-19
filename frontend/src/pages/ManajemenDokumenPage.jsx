@@ -11,10 +11,12 @@ const KATEGORI_ICONS = {
   PPT:       '📋',
   Gambar:    '🖼️',
   Arsip:     '🗜️',
+  Link:      '🔗',
   default:   '📁',
 };
 
-function getIconByMime(mime = '') {
+function getIconByMime(mime = '', path = '') {
+  if (mime === 'text/url' || path.startsWith('http://') || path.startsWith('https://')) return KATEGORI_ICONS.Link;
   if (mime.includes('pdf'))        return KATEGORI_ICONS.PDF;
   if (mime.includes('word') || mime.includes('document')) return KATEGORI_ICONS.Word;
   if (mime.includes('sheet') || mime.includes('excel'))   return KATEGORI_ICONS.Excel;
@@ -24,7 +26,8 @@ function getIconByMime(mime = '') {
   return KATEGORI_ICONS.default;
 }
 
-function formatBytes(bytes) {
+function formatBytes(bytes, mime = '', path = '') {
+  if (mime === 'text/url' || path.startsWith('http://') || path.startsWith('https://')) return '🌐 Tautan Link';
   if (!bytes) return '—';
   if (bytes < 1024)           return `${bytes} B`;
   if (bytes < 1024 * 1024)    return `${(bytes / 1024).toFixed(1)} KB`;
@@ -33,6 +36,7 @@ function formatBytes(bytes) {
 
 // ─── Edit modal ───────────────────────────────────────────────────────────────
 function EditDokumenModal({ doc, kategoriList, surveys, onClose, onSaved }) {
+  const isLink = doc.mime_type === 'text/url' || doc.path?.startsWith('http');
   const [form, setForm] = useState({
     nama_file:  doc.nama_file,
     kategori:   doc.kategori,
@@ -43,7 +47,7 @@ function EditDokumenModal({ doc, kategoriList, surveys, onClose, onSaved }) {
   const [error, setError]   = useState('');
 
   async function save() {
-    if (!form.nama_file.trim()) { setError('Nama file wajib diisi.'); return; }
+    if (!form.nama_file.trim()) { setError('Nama wajib diisi.'); return; }
     setSaving(true);
     const res = await api.put(`/dokumen/${doc.id}`, { ...form, survei_id: form.survei_id || null });
     setSaving(false);
@@ -52,7 +56,7 @@ function EditDokumenModal({ doc, kategoriList, surveys, onClose, onSaved }) {
   }
 
   return (
-    <Modal isOpen onClose={onClose} title="Edit Metadata Dokumen" size="md"
+    <Modal isOpen onClose={onClose} title={isLink ? "Edit Metadata Tautan" : "Edit Metadata Dokumen"} size="md"
       footer={
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="btn-secondary text-sm px-4 py-2">Batal</button>
@@ -63,7 +67,7 @@ function EditDokumenModal({ doc, kategoriList, surveys, onClose, onSaved }) {
       }>
       <div className="space-y-4">
         {error && <p className="text-sm text-accent-orange dark:text-dark-accent-orange">{error}</p>}
-        <FormField label="Nama Dokumen" required>
+        <FormField label={isLink ? "Nama / Judul Tautan" : "Nama Dokumen"} required>
           <Input value={form.nama_file} onChange={(e) => setForm(f => ({...f, nama_file: e.target.value}))} />
         </FormField>
         <FormField label="Kategori">
@@ -140,11 +144,16 @@ export default function ManajemenDokumenPage() {
   const [q,            setQ]            = useState('');
   const [filterKat,    setFilterKat]    = useState('');
   const [uploading,    setUploading]    = useState(false);
+  const [savingLink,   setSavingLink]   = useState(false);
   const [toast,        setToast]        = useState('');
   const [editDoc,      setEditDoc]      = useState(null);
   const [confirmId,    setConfirmId]    = useState(null);
   const [deleting,     setDeleting]     = useState(false);
+
+  // Form mode: 'file' | 'link'
+  const [addMode,      setAddMode]      = useState('file');
   const [uploadForm,   setUploadForm]   = useState({ kategori: 'Umum', nama_file: '', survei_id: '' });
+  const [linkForm,     setLinkForm]     = useState({ nama_file: '', url: '', kategori: 'Tautan Entri', survei_id: '' });
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
 
@@ -159,7 +168,12 @@ export default function ManajemenDokumenPage() {
   };
 
   useEffect(() => {
-    api.get('/dokumen/kategori').then(r => { if (r.success) setKategoriList(r.data); });
+    api.get('/dokumen/kategori').then(r => {
+      if (r.success) {
+        const merged = Array.from(new Set([...r.data, 'Tautan Entri']));
+        setKategoriList(merged);
+      }
+    });
     api.get('/master/survei').then(r => { if (r.success) setSurveys(r.data); });
   }, []);
 
@@ -180,6 +194,23 @@ export default function ManajemenDokumenPage() {
     if (json.success) {
       load();
       setUploadForm(f => ({...f, nama_file: ''}));
+    }
+  }
+
+  async function handleSaveLink() {
+    if (!linkForm.nama_file.trim()) { showToast('Nama/judul tautan wajib diisi.'); return; }
+    if (!linkForm.url.trim() || !linkForm.url.startsWith('http')) {
+      showToast('URL tautan wajib diawali dengan http:// atau https://');
+      return;
+    }
+
+    setSavingLink(true);
+    const res = await api.post('/dokumen/link', linkForm);
+    setSavingLink(false);
+    showToast(res.message);
+    if (res.success) {
+      load();
+      setLinkForm({ nama_file: '', url: '', kategori: 'Tautan Entri', survei_id: '' });
     }
   }
 
@@ -205,41 +236,125 @@ export default function ManajemenDokumenPage() {
         </div>
       </div>
 
-      {/* Upload area */}
+      {/* Upload & Link Add Area */}
       <div className="card p-5 space-y-4">
-        <h2 className="font-heading font-semibold text-sm text-text-primary dark:text-dark-text-primary">Upload Dokumen Baru</h2>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">Nama (opsional)</label>
-            <input value={uploadForm.nama_file}
-              onChange={e => setUploadForm(f => ({...f, nama_file: e.target.value}))}
-              placeholder="Biarkan kosong = nama file"
-              className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all" />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">Kategori</label>
-            <select value={uploadForm.kategori}
-              onChange={e => setUploadForm(f => ({...f, kategori: e.target.value}))}
-              className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all">
-              {kategoriList.map(k => <option key={k}>{k}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">Survei Terkait</label>
-            <select value={uploadForm.survei_id}
-              onChange={e => setUploadForm(f => ({...f, survei_id: e.target.value}))}
-              className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all">
-              <option value="">— Tidak terkait —</option>
-              {surveys.map(s => <option key={s.id} value={s.id}>{s.nama_survei}</option>)}
-            </select>
+        {/* Toggle Mode */}
+        <div className="flex items-center justify-between border-b border-border-soft dark:border-dark-border-soft pb-3 flex-wrap gap-2">
+          <h2 className="font-heading font-semibold text-sm text-text-primary dark:text-dark-text-primary">
+            {addMode === 'file' ? 'Upload Dokumen Baru' : 'Tambah Tautan Entri / Link'}
+          </h2>
+          <div className="flex items-center p-0.5 rounded-xl bg-bg-page dark:bg-dark-bg-page border border-border-soft dark:border-dark-border-soft">
+            <button
+              onClick={() => setAddMode('file')}
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                addMode === 'file'
+                  ? 'bg-surface dark:bg-dark-surface text-navy dark:text-dark-navy shadow-sm'
+                  : 'text-text-secondary dark:text-dark-text-secondary hover:text-text-primary'
+              }`}
+            >
+              📄 Upload File
+            </button>
+            <button
+              onClick={() => setAddMode('link')}
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                addMode === 'link'
+                  ? 'bg-surface dark:bg-dark-surface text-navy dark:text-dark-navy shadow-sm'
+                  : 'text-text-secondary dark:text-dark-text-secondary hover:text-text-primary'
+              }`}
+            >
+              🔗 Tambah Tautan Entri
+            </button>
           </div>
         </div>
-        <UploadZone onUpload={handleUpload} uploading={uploading} />
+
+        {addMode === 'file' ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">Nama File (opsional)</label>
+                <input value={uploadForm.nama_file}
+                  onChange={e => setUploadForm(f => ({...f, nama_file: e.target.value}))}
+                  placeholder="Biarkan kosong = nama file asli"
+                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">Kategori</label>
+                <select value={uploadForm.kategori}
+                  onChange={e => setUploadForm(f => ({...f, kategori: e.target.value}))}
+                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all">
+                  {kategoriList.map(k => <option key={k}>{k}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">Survei Terkait (Opsional)</label>
+                <select value={uploadForm.survei_id}
+                  onChange={e => setUploadForm(f => ({...f, survei_id: e.target.value}))}
+                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all">
+                  <option value="">— Tidak terkait survei —</option>
+                  {surveys.map(s => <option key={s.id} value={s.id}>{s.nama_survei}</option>)}
+                </select>
+              </div>
+            </div>
+            <UploadZone onUpload={handleUpload} uploading={uploading} />
+          </>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">
+                  Nama / Judul Tautan <span className="text-accent-orange">*</span>
+                </label>
+                <input value={linkForm.nama_file}
+                  onChange={e => setLinkForm(f => ({...f, nama_file: e.target.value}))}
+                  placeholder="misal: Form Entri Data FASIH SAPB 2026"
+                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">
+                  URL Tautan Link <span className="text-accent-orange">*</span>
+                </label>
+                <input value={linkForm.url}
+                  onChange={e => setLinkForm(f => ({...f, url: e.target.value}))}
+                  placeholder="https://fasih.bps.go.id/..."
+                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all font-mono text-xs" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">Kategori</label>
+                <select value={linkForm.kategori}
+                  onChange={e => setLinkForm(f => ({...f, kategori: e.target.value}))}
+                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all">
+                  {kategoriList.map(k => <option key={k}>{k}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 block">Survei Terkait</label>
+                <select value={linkForm.survei_id}
+                  onChange={e => setLinkForm(f => ({...f, survei_id: e.target.value}))}
+                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all">
+                  <option value="">— Tidak terkait survei —</option>
+                  {surveys.map(s => <option key={s.id} value={s.id}>{s.nama_survei}</option>)}
+                </select>
+                <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary mt-1">
+                  💡 Tautan akan otomatis muncul di tab <strong>Materi & Dokumen</strong> pada halaman survei yang dipilih.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <button onClick={handleSaveLink} disabled={savingLink} className="btn-primary text-sm px-5 py-2 flex items-center gap-2">
+                {savingLink ? 'Menyimpan...' : '🔗 Simpan Tautan Entri'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filter bar */}
       <div className="flex items-center gap-2 flex-wrap">
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cari nama dokumen..."
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cari nama dokumen / link..."
           className="px-3.5 py-2 rounded-xl text-sm border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all w-56" />
         <select value={filterKat} onChange={e => setFilterKat(e.target.value)}
           className="px-3.5 py-2 rounded-xl text-sm border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all">
@@ -259,7 +374,7 @@ export default function ManajemenDokumenPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-navy/5 dark:bg-dark-navy/10">
-              {['Dokumen','Kategori','Survei','Ukuran','Diunggah oleh','Tanggal','Aksi'].map(h => (
+              {['Dokumen / Link','Kategori','Survei','Ukuran / Tipe','Diunggah oleh','Tanggal','Aksi'].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">{h}</th>
               ))}
             </tr>
@@ -274,44 +389,59 @@ export default function ManajemenDokumenPage() {
                 </tr>
               ))
             ) : data.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">Belum ada dokumen.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">Belum ada dokumen atau tautan.</td></tr>
             ) : (
-              data.map(doc => (
-                <tr key={doc.id} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{getIconByMime(doc.mime_type)}</span>
-                      <span className="text-sm font-medium text-text-primary dark:text-dark-text-primary max-w-48 truncate" title={doc.nama_file}>
-                        {doc.nama_file}
+              data.map(doc => {
+                const isLink = doc.mime_type === 'text/url' || doc.path?.startsWith('http');
+                return (
+                  <tr key={doc.id} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{getIconByMime(doc.mime_type, doc.path)}</span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium text-text-primary dark:text-dark-text-primary max-w-48 block truncate" title={doc.nama_file}>
+                            {doc.nama_file}
+                          </span>
+                          {isLink && (
+                            <span className="text-[11px] text-text-secondary dark:text-dark-text-secondary font-mono truncate max-w-48 block">
+                              {doc.path}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-navy/8 text-navy dark:bg-dark-navy/15 dark:text-dark-navy">
+                        {doc.kategori}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-navy/8 text-navy dark:bg-dark-navy/15 dark:text-dark-navy">
-                      {doc.kategori}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary truncate max-w-36">
-                    {doc.nama_survei || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary">
-                    {formatBytes(doc.ukuran_byte)}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary">
-                    {doc.uploaded_by_nama || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
-                    {doc.uploaded_at?.slice(0, 10)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <a href={`/api/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all" title="Download">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                        </svg>
-                      </a>
-                      {isSuperadmin && (
+                    </td>
+                    <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary truncate max-w-36">
+                      {doc.nama_survei || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary">
+                      {formatBytes(doc.ukuran_byte, doc.mime_type, doc.path)}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary">
+                      {doc.uploaded_by_nama || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
+                      {doc.uploaded_at?.slice(0, 10)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <a href={isLink ? doc.path : `/api/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all" title={isLink ? "Buka Link" : "Download"}>
+                          {isLink ? (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                          )}
+                        </a>
+                        {isSuperadmin && (
                         <>
                           <button onClick={() => setEditDoc(doc)}
                             className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all" title="Edit">
@@ -330,7 +460,8 @@ export default function ManajemenDokumenPage() {
                     </div>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

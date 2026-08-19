@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -8,6 +8,10 @@ export default function LoginPage() {
   const navigate   = useNavigate();
   const location   = useLocation();
   const { isDark, toggle: toggleDark } = useDarkMode();
+
+  useEffect(() => {
+    document.title = 'SIMADU - Login';
+  }, []);
 
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');

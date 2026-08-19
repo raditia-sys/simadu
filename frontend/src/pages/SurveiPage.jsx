@@ -371,15 +371,18 @@ export default function SurveiPage({ surveiNama, kategori }) {
 
           {/* ── Tab: Materi & Dokumen ───────────────────────────────────────── */}
           {tab === 'dokumen' && (
-            <div className="card p-5 space-y-4">
-              {/* Tautan Entri Data */}
+            <div className="card p-5 space-y-5">
+              {/* Tautan Entri Data Utama */}
               {survei.tautan_entri_data && (
-                <div className="p-4 rounded-2xl border border-border-soft dark:border-dark-border-soft flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-text-primary dark:text-dark-text-primary">
-                      Tautan Entri Data Resmi
-                    </p>
-                    <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5 truncate max-w-xs">
+                <div className="p-4 rounded-2xl border border-border-soft dark:border-dark-border-soft flex items-center justify-between gap-4 bg-navy/4 dark:bg-dark-navy/8">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🔗</span>
+                      <p className="text-sm font-semibold text-text-primary dark:text-dark-text-primary">
+                        Tautan Entri Data Utama ({survei.nama_survei})
+                      </p>
+                    </div>
+                    <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5 truncate max-w-xs md:max-w-md font-mono">
                       {survei.tautan_entri_data}
                     </p>
                   </div>
@@ -388,8 +391,37 @@ export default function SurveiPage({ surveiNama, kategori }) {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
-                    Buka
+                    Buka Link
                   </a>
+                </div>
+              )}
+
+              {/* Tautan / Link Entri Tambahan dari Manajemen Dokumen */}
+              {dokumen.filter(d => d.mime_type === 'text/url' || d.path?.startsWith('http')).length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-3 flex items-center gap-2">
+                    <span>🔗</span> Tautan Entri & Link Terkait ({dokumen.filter(d => d.mime_type === 'text/url' || d.path?.startsWith('http')).length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {dokumen.filter(d => d.mime_type === 'text/url' || d.path?.startsWith('http')).map((doc) => (
+                      <div key={doc.id} className="p-3.5 rounded-xl border border-border-soft dark:border-dark-border-soft flex items-center justify-between gap-3 bg-surface dark:bg-dark-surface hover:border-navy/30 transition-all">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">🔗</span>
+                            <p className="text-sm font-medium text-text-primary dark:text-dark-text-primary truncate">{doc.nama_file}</p>
+                          </div>
+                          <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5 font-mono truncate">{doc.path}</p>
+                          {doc.deskripsi && (
+                            <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary mt-0.5 line-clamp-1">{doc.deskripsi}</p>
+                          )}
+                        </div>
+                        <a href={doc.path} target="_blank" rel="noopener noreferrer"
+                          className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1 flex-shrink-0">
+                          Buka Link ↗
+                        </a>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -399,20 +431,20 @@ export default function SurveiPage({ surveiNama, kategori }) {
                   <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-2">
                     Materi Kegiatan
                   </h3>
-                  <div className="prose prose-sm max-w-none text-text-secondary dark:text-dark-text-secondary whitespace-pre-wrap text-sm">
+                  <div className="prose prose-sm max-w-none text-text-secondary dark:text-dark-text-secondary whitespace-pre-wrap text-sm p-4 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page">
                     {survei.materi_dokumen}
                   </div>
                 </div>
               )}
 
-              {/* Dokumen terlampir */}
-              {dokumen.length > 0 ? (
+              {/* Dokumen File Fisik Terlampir */}
+              {dokumen.filter(d => d.mime_type !== 'text/url' && !d.path?.startsWith('http')).length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-3">
-                    Dokumen Terlampir ({dokumen.length})
+                  <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-3 flex items-center gap-2">
+                    <span>📄</span> Dokumen File Terlampir ({dokumen.filter(d => d.mime_type !== 'text/url' && !d.path?.startsWith('http')).length})
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {dokumen.map((doc) => (
+                    {dokumen.filter(d => d.mime_type !== 'text/url' && !d.path?.startsWith('http')).map((doc) => (
                       <div key={doc.id} className="p-3 rounded-xl border border-border-soft dark:border-dark-border-soft flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-navy/8 dark:bg-dark-navy/15 flex-shrink-0">
                           <svg className="w-5 h-5 text-navy dark:text-dark-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -424,7 +456,7 @@ export default function SurveiPage({ surveiNama, kategori }) {
                           <p className="text-xs text-text-secondary dark:text-dark-text-secondary">{doc.kategori}</p>
                         </div>
                         <a href={`/api/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all flex-shrink-0">
+                          className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all flex-shrink-0" title="Download">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                           </svg>
@@ -433,14 +465,15 @@ export default function SurveiPage({ surveiNama, kategori }) {
                     ))}
                   </div>
                 </div>
-              ) : (
-                !survei.tautan_entri_data && !survei.materi_dokumen && (
-                  <div className="py-8 text-center">
-                    <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
-                      Belum ada dokumen terlampir untuk survei ini.
-                    </p>
-                  </div>
-                )
+              )}
+
+              {/* Status Kosong */}
+              {dokumen.length === 0 && !survei.tautan_entri_data && !survei.materi_dokumen && (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
+                    Belum ada materi, tautan entri, atau dokumen terlampir untuk survei ini.
+                  </p>
+                </div>
               )}
             </div>
           )}
