@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
 
   server: {
+    host: true,
     port: 5173,
     proxy: {
       // All /api/* requests are proxied to the PHP backend at Laragon

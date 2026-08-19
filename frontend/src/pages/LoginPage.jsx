@@ -154,6 +154,18 @@ export default function LoginPage() {
             {loading ? 'Memproses...' : 'Masuk'}
           </button>
         </form>
+
+        {/* ── Footer Credit Notice ── */}
+        <div className="pt-4 border-t border-border-soft dark:border-dark-border-soft text-center space-y-1">
+          <p className="font-heading font-bold text-text-primary dark:text-dark-text-primary text-xs">SIMADU</p>
+          <p className="text-text-secondary dark:text-dark-text-secondary text-[11px] leading-tight">
+            © 2026 Developed by <span className="font-semibold text-text-primary dark:text-dark-text-primary">Alief Raditia Ali</span>
+          </p>
+          <p className="text-[10px] text-text-secondary/70 dark:text-dark-text-secondary/70 leading-tight">
+            Sistem Monitoring untuk Kegiatan Distribusi Terpadu - BPS Kabupaten Batang Hari
+          </p>
+        </div>
+
       </div>
     </div>
   );

@@ -246,23 +246,33 @@ export default function Sidebar({ collapsed = false, userRole = 'superadmin' }) 
         <NavItem to="/kalender"     icon="kalender"  label="Kalender & Agenda" />
         <NavItem to="/tim"          icon="tim"       label="Tim & Organisasi" />
 
-        {/* ── Superadmin Only ── */}
-        {isSuperadmin && (
-          <>
-            <SectionLabel label="Administrasi" />
-            <NavItem to="/log" icon="log" label="Log Aktivitas" />
+          {isSuperadmin && (
+            <>
+              <SectionLabel label="Administrasi" />
+              <NavItem to="/log" icon="log" label="Log Aktivitas" />
 
-            <NavGroup icon="master" label="Master Data" defaultOpen={false}>
-              <NavItem to="/master/wilayah"  label="Master Wilayah"  indent={1} />
-              <NavItem to="/master/pegawai"  label="Master Pegawai"  indent={1} />
-              <NavItem to="/master/mitra"    label="Master Mitra"    indent={1} />
-              <NavItem to="/master/survei"   label="Master Survei"   indent={1} />
-              <NavItem to="/master/kegiatan" label="Master Kegiatan" indent={1} />
-            </NavGroup>
-          </>
-        )}
+              <NavGroup icon="master" label="Master Data" defaultOpen={false}>
+                <NavItem to="/master/wilayah"  label="Master Wilayah"  indent={1} />
+                <NavItem to="/master/pegawai"  label="Master Pegawai"  indent={1} />
+                <NavItem to="/master/mitra"    label="Master Mitra"    indent={1} />
+                <NavItem to="/master/survei"   label="Master Survei"   indent={1} />
+                <NavItem to="/master/kegiatan" label="Master Kegiatan" indent={1} />
+              </NavGroup>
+            </>
+          )}
 
-      </nav>
-    </aside>
-  );
-}
+        </nav>
+
+        {/* ── Footer Credit Notice ── */}
+        <div className="p-4 border-t border-border-soft dark:border-dark-border-soft text-xs space-y-1 flex-shrink-0 bg-surface/50 dark:bg-dark-surface/50">
+          <p className="font-heading font-bold text-text-primary dark:text-dark-text-primary text-xs">SIMADU</p>
+          <p className="text-text-secondary dark:text-dark-text-secondary text-[11px] leading-tight">
+            © 2026 Developed by <span className="font-semibold text-text-primary dark:text-dark-text-primary">Alief Raditia Ali</span>
+          </p>
+          <p className="text-[10px] text-text-secondary/70 dark:text-dark-text-secondary/70 leading-tight">
+            Sistem Monitoring untuk Kegiatan Distribusi Terpadu - BPS Kabupaten Batang Hari
+          </p>
+        </div>
+      </aside>
+    );
+  }
