@@ -462,313 +462,100 @@ class LaporanPerjalananController
         $tglSelesai = $l['tanggal_kembali']      ? date('d F Y', strtotime($l['tanggal_kembali']))     : '';
         $tglTugas   = $tglMulai === $tglSelesai ? $tglMulai : "$tglMulai s.d. $tglSelesai";
 
+        // Key sesuai placeholder ${...} di template Word
         return [
-            '[Pegawai]'   => $p['nama']                 ?? '',
-            '[NIP]'       => $p['nip_atau_kode_mitra']  ?? '',
-            '[Jabatan]'   => $p['jabatan']               ?? '',
-            '[Pangkat]'   => $p['pangkat_golongan']      ?? '',
-            '[NoSurat]'   => $l['nomor_surat']           ?? '',
-            '[TglSTugas]' => $tglSTugas,
-            '[TglTugas]'  => $tglTugas,
-            '[Kegiatan]'  => $l['maksud_perjalanan']     ?? '',
-            '[Kecamatan]' => $w['kecamatan']             ?? '',
-            '[Deskripsi]' => $l['ringkasan_hasil']       ?? '',
-            '[Survei]'    => $s['nama_survei']           ?? '',
-            '[Jumlah]'    => number_format((float)($l['biaya_transport'] ?? 0), 0, ',', '.'),
-            '[Terbilang]' => self::terbilang((int)($l['biaya_transport'] ?? 0)),
+            'Pegawai'       => $p['nama']                ?? '',
+            'NIP'           => $p['nip_atau_kode_mitra'] ?? '',
+            'Jabatan'       => $p['jabatan']              ?? '',
+            'Pangkat'       => $p['pangkat_golongan']     ?? '',
+            'NoSurat'       => $l['nomor_surat']          ?? '',
+            'TglSTugas'     => $tglSTugas,
+            'TglTugas'      => $tglTugas,
+            'rentang_waktu' => $tglTugas,
+            'Kegiatan'      => $l['maksud_perjalanan']    ?? '',
+            'Kecamatan'     => $w['kecamatan']            ?? '',
+            'Deskripsi'     => $l['ringkasan_hasil']      ?? '',
+            'Survei'        => $s['nama_survei']          ?? '',
+            'Jumlah'        => 'Rp ' . number_format((float)($l['biaya_transport'] ?? 0), 0, ',', '.'),
+            'Terbilang'     => ucfirst(self::terbilang((int)($l['biaya_transport'] ?? 0))) . ' Rupiah',
         ];
     }
 
-    private static function fillTemplate(string $tpl, array $vars): string
+    /** Isi template .docx menggunakan TemplateProcessor — layout asli tidak berubah */
+    private static function fillTemplate(string $tplPath, array $vars, string $outPath): void
     {
-        return str_replace(array_keys($vars), array_values($vars), $tpl);
+        $proc = new \PhpOffice\PhpWord\TemplateProcessor($tplPath);
+        foreach ($vars as $key => $value) {
+            $proc->setValue($key, htmlspecialchars((string)($value ?? ''), ENT_XML1, 'UTF-8'));
+        }
+        $proc->saveAs($outPath);
     }
 
-    /** Buat Laporan Perjalanan Dinas.docx */
+
+    /** Buat Laporan Perjalanan Dinas.docx dari template asli */
     private static function genLaporan(array $vars, array $rundown, array $fotos, string $outDir): string
     {
-        $phpWord = new \PhpOffice\PhpWord\PhpWord();
-        $phpWord->setDefaultFontName('Times New Roman');
-        $phpWord->setDefaultFontSize(12);
+        $tplPath = ROOT_DIR . '/../archive/template/Template Laporan Perjalanan Dinas.docx';
+        $outPath = $outDir . 'Laporan_Perjalanan_Dinas.docx';
 
-        $section = $phpWord->addSection([
-            'marginTop'    => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(2.54),
-            'marginBottom' => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(2.54),
-            'marginLeft'   => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(3),
-            'marginRight'  => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(2.54),
-        ]);
+        $proc = new \PhpOffice\PhpWord\TemplateProcessor($tplPath);
 
-        // ── Kop surat ────────────────────────────────────────────────────────
-        $headerStyle = ['bold' => true, 'size' => 12, 'name' => 'Times New Roman'];
-        $section->addText('BADAN PUSAT STATISTIK KABUPATEN BATANG HARI', $headerStyle, ['align' => 'center']);
-        $section->addText('Jl. Jend. Sudirman Muara Bulian 36613 Telp (0743) 21008', ['size' => 10, 'name' => 'Times New Roman'], ['align' => 'center']);
-        $section->addText('Homepage: https://batangharikab.bps.go.id | Email: bps1504@bps.go.id', ['size' => 10, 'name' => 'Times New Roman'], ['align' => 'center']);
-        $section->addLine(['weight' => 2, 'color' => '000000', 'width' => \PhpOffice\PhpWord\Shared\Converter::cmToEmu(16)]);
-        $section->addTextBreak(1);
-
-        // ── Tanggal & tujuan ─────────────────────────────────────────────────
-        $section->addText('Muara Bulian, ' . date('d F Y'), null, ['align' => 'right']);
-        $section->addText('Yth. Kepala BPS Kabupaten Batang Hari', null, ['align' => 'left']);
-        $section->addText('Di - Tempat', null, ['align' => 'left']);
-        $section->addTextBreak(1);
-        $section->addText('Dengan ini disampaikan Laporan Perjalanan Dinas sebagai berikut:', null);
-        $section->addTextBreak(1);
-
-        // ── Identitas Pegawai ─────────────────────────────────────────────────
-        $section->addText('Identitas Pegawai', $headerStyle);
-        $idents = [
-            'Nama'       => $vars['[Pegawai]'],
-            'NIP'        => $vars['[NIP]'],
-            'Jabatan'    => $vars['[Jabatan]'],
-            'Unit Kerja' => 'BPS Kabupaten Batang Hari',
-        ];
-        foreach ($idents as $k => $v) {
-            $r = $section->addTextRun();
-            $r->addText("$k", ['bold' => true]);
-            $r->addText(" : $v");
-        }
-        $section->addTextBreak(1);
-
-        // ── Kegiatan ──────────────────────────────────────────────────────────
-        $section->addText('Kegiatan', $headerStyle);
-        $keg = [
-            'No. Surat Tugas'   => $vars['[NoSurat]'],
-            'Tanggal Surat Tugas' => $vars['[TglSTugas]'],
-            'Tanggal Tugas'     => $vars['[TglTugas]'],
-            'Tujuan Tugas'      => $vars['[Kegiatan]'],
-        ];
-        foreach ($keg as $k => $v) {
-            $r = $section->addTextRun();
-            $r->addText("$k", ['bold' => true]);
-            $r->addText(" : $v");
-        }
-        $section->addTextBreak(1);
-
-        // ── Jadwal Rundown ────────────────────────────────────────────────────
-        $section->addText('LAPORAN PERJALANAN DINAS', $headerStyle, ['align' => 'center']);
-        $section->addText('JADWAL, WAKTU DAN LOKASI PELAKSANAAN KEGIATAN', ['bold' => true], ['align' => 'center']);
-        $section->addTextBreak(1);
-
-        $tblStyle = ['borderSize' => 6, 'borderColor' => '000000', 'cellMargin' => 80];
-        $tbl = $section->addTable($tblStyle);
-
-        // Header tabel
-        $tbl->addRow();
-        foreach (['No.', 'Hari/Tanggal', 'Waktu (WIB)', 'Kegiatan', 'Lokasi'] as $h) {
-            $cell = $tbl->addCell(null, ['bgColor' => 'D9D9D9']);
-            $cell->addText($h, ['bold' => true], ['align' => 'center']);
+        // Isi semua placeholder teks biasa (Pegawai, NIP, Jabatan, dst)
+        foreach ($vars as $key => $value) {
+            $proc->setValue($key, htmlspecialchars((string)($value ?? ''), ENT_XML1, 'UTF-8'));
         }
 
-        foreach ($rundown as $i => $r) {
-            $tbl->addRow();
-            $hariTgl = '';
-            if ($r['hari_tanggal']) {
-                $hariTgl = date('l, d F Y', strtotime($r['hari_tanggal']));
-            }
-            $waktu = '';
-            if ($r['waktu_mulai']) {
-                $waktu = substr($r['waktu_mulai'], 0, 5);
-                if ($r['waktu_selesai']) $waktu .= ' - ' . substr($r['waktu_selesai'], 0, 5);
-            }
-            $tbl->addCell(600)->addText((string)($i+1), null, ['align' => 'center']);
-            $tbl->addCell(2200)->addText($hariTgl);
-            $tbl->addCell(1800)->addText($waktu, null, ['align' => 'center']);
-            $tbl->addCell(4000)->addText($r['kegiatan'] . ($r['deskripsi'] ? "\n{$r['deskripsi']}" : ''));
-            $tbl->addCell(2400)->addText($r['lokasi'] ?? '');
+        // ── Rundown: Template memiliki baris preset, isi placeholder-nya langsung ──
+        // ${Hari} dan ${TglTugas} tergabung dalam satu sel → gunakan setValue biasa
+        // Ambil entri rundown pertama untuk placeholder utama di tabel
+        $r0 = $rundown[0] ?? null;
+        $hari0 = $r0 && $r0['hari_tanggal'] ? date('l', strtotime($r0['hari_tanggal'])) : '-';
+        $tgl0  = $r0 && $r0['hari_tanggal'] ? date('d F Y', strtotime($r0['hari_tanggal'])) : '-';
+        $waktu0 = '';
+        if ($r0 && $r0['waktu_mulai']) {
+            $waktu0 = substr($r0['waktu_mulai'], 0, 5);
+            if ($r0['waktu_selesai']) $waktu0 .= ' - ' . substr($r0['waktu_selesai'], 0, 5);
         }
+        $kegiatan0 = $r0
+            ? ($r0['kegiatan'] ?? '') . ($r0['lokasi'] ? ', ' . $r0['lokasi'] : '')
+            : '-';
 
-        $section->addTextBreak(1);
+        $proc->setValue('Hari',          htmlspecialchars($hari0,     ENT_XML1, 'UTF-8'));
+        $proc->setValue('rentang_waktu', htmlspecialchars($waktu0,    ENT_XML1, 'UTF-8'));
 
-        // ── Resume & Kesimpulan ───────────────────────────────────────────────
-        $section->addText('RESUME DAN KESIMPULAN HASIL PERJALANAN DINAS', $headerStyle, ['align' => 'center']);
-        $section->addText($vars['[Deskripsi]'] ?: 'Tidak ada keterangan.', null);
-        $section->addText('Kegiatan ' . $vars['[Kegiatan]'] . ' berjalan dengan lancar tanpa adanya kendala.', null);
-        $section->addText('Perjalanan dinas ini ditutup dengan kembalinya saya ke Muara Bulian, Kabupaten Batang Hari.', null);
-        $section->addText('Demikian laporan perjalanan dinas ini saya sampaikan. Terimakasih.', null);
-        $section->addTextBreak(2);
-
-        // TTD
-        $r = $section->addTextRun(['align' => 'right']);
-        $r->addText('Yang Melakukan Perjalanan Dinas,');
-        $section->addTextBreak(4);
-        $section->addText($vars['[Pegawai]'], ['bold' => true], ['align' => 'right']);
-        $section->addText('NIP. ' . $vars['[NIP]'], null, ['align' => 'right']);
-
-        // ── Lampiran Foto ─────────────────────────────────────────────────────
+        // ── Foto: ganti placeholder ${Foto} dengan keterangan foto (teks) ───
         if (!empty($fotos)) {
-            $phpWord->addSection()->addPageBreak();
-            $sec2 = $phpWord->addSection();
-            $sec2->addText('DOKUMENTASI KEGIATAN', $headerStyle, ['align' => 'center']);
-            $sec2->addTextBreak(1);
-
-            foreach (array_chunk($fotos, 2) as $pair) {
-                $tblF = $sec2->addTable(['borderSize' => 0, 'cellMargin' => 100]);
-                $tblF->addRow();
-                foreach ($pair as $foto) {
-                    $fPath = ROOT_DIR . '/' . $foto['path'];
-                    $cell  = $tblF->addCell(4500);
-                    if (file_exists($fPath)) {
-                        try {
-                            $cell->addImage($fPath, ['width' => 200, 'height' => 150, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
-                        } catch (\Throwable) {}
-                    }
-                    if ($foto['keterangan']) {
-                        $cell->addText($foto['keterangan'], ['italic' => true, 'size' => 10], ['align' => 'center']);
-                    }
-                }
-                // Pad baris jika hanya 1 foto
-                if (count($pair) === 1) {
-                    $tblF->addCell(4500)->addText('');
-                }
-            }
+            $fotoText = implode('; ', array_map(fn($f) => $f['keterangan'] ?: basename($f['path']), $fotos));
+            $proc->setValue('Foto', htmlspecialchars($fotoText, ENT_XML1, 'UTF-8'));
+        } else {
+            $proc->setValue('Foto', '-');
         }
 
-        $out = $outDir . 'Laporan_Perjalanan_Dinas.docx';
-        $writer = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
-        $writer->save($out);
-        return $out;
+        $proc->saveAs($outPath);
+        return $outPath;
     }
 
-    /** Buat Pernyataan Tidak Menggunakan Kendaraan Dinas.docx */
+
+    /** Buat Pernyataan Tidak Menggunakan Kendaraan Dinas.docx dari template asli */
     private static function genPernyataan(array $vars, string $outDir): string
     {
-        $phpWord = new \PhpOffice\PhpWord\PhpWord();
-        $phpWord->setDefaultFontName('Times New Roman');
-        $phpWord->setDefaultFontSize(12);
+        $tplPath = ROOT_DIR . '/../archive/template/Template Pernyataan Tidak Menggunakan Kendaraan Dinas.docx';
+        $outPath = $outDir . 'Pernyataan_Tidak_Kendaraan_Dinas.docx';
 
-        $section = $phpWord->addSection([
-            'marginTop'    => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(3),
-            'marginBottom' => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(2.54),
-            'marginLeft'   => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(3),
-            'marginRight'  => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(2.54),
-        ]);
-
-        $section->addText('PERNYATAAN TIDAK MENGGUNAKAN KENDARAAN DINAS', ['bold' => true, 'size' => 14], ['align' => 'center']);
-        $section->addTextBreak(2);
-        $section->addText('Yang bertanda tangan dibawah ini:');
-        $section->addTextBreak(1);
-
-        $data = [
-            'Nama'             => $vars['[Pegawai]'],
-            'NIP'              => $vars['[NIP]'],
-            'Pangkat/Golongan' => $vars['[Pangkat]'],
-            'Jabatan'          => $vars['[Jabatan]'],
-            'Unit Kerja'       => 'BPS Batang Hari',
-        ];
-        foreach ($data as $k => $v) {
-            $r = $section->addTextRun();
-            $r->addText(str_pad($k, 20), ['bold' => true]);
-            $r->addText(': ' . $v);
-        }
-        $section->addTextBreak(1);
-
-        $body = 'Menerangkan bahwa dalam rangka melaksanakan perjalanan dinas dalam kota untuk melaksanakan tugas kedinasan sesuai surat tugas nomor: ' . $vars['[NoSurat]'] . ' pelaksanaan tanggal ' . $vars['[TglTugas]'] . ', saya benar-benar tidak menggunakan kendaraan dinas.';
-        $section->addText($body, null, ['align' => 'both']);
-        $section->addTextBreak(1);
-        $section->addText('Demikian pernyataan ini kami buat dengan sebenar-benarnya untuk dipergunakan sebagaimana mestinya. Apabila terdapat kekeliruan dalam pertanggungjawaban SPD dan mengakibatkan kerugian negara, saya bersedia dituntut sesuai aturan yang berlaku dan mengembalikan biaya transport lokal yang sudah saya terima ke kas negara.', null, ['align' => 'both']);
-        $section->addTextBreak(2);
-
-        $tbl = $section->addTable(['borderSize' => 0, 'cellMargin' => 50]);
-        $tbl->addRow();
-        $tbl->addCell(5000)->addText('');
-        $c2 = $tbl->addCell(5000);
-        $c2->addText('Batang Hari, ' . date('d F Y'), null, ['align' => 'center']);
-        $c2->addText('Pelaksana Perjalanan Dinas', null, ['align' => 'center']);
-        $c2->addTextBreak(4);
-        $c2->addText($vars['[Pegawai]'], ['bold' => true, 'underline' => 'single'], ['align' => 'center']);
-
-        $out = $outDir . 'Pernyataan_Tidak_Kendaraan_Dinas.docx';
-        $writer = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
-        $writer->save($out);
-        return $out;
+        self::fillTemplate($tplPath, $vars, $outPath);
+        return $outPath;
     }
 
-    /** Buat Transport Lokal Riil.docx */
+    /** Buat Transport Lokal Riil.docx dari template asli */
     private static function genTransportLokal(array $vars, string $outDir): string
     {
-        $phpWord = new \PhpOffice\PhpWord\PhpWord();
-        $phpWord->setDefaultFontName('Times New Roman');
-        $phpWord->setDefaultFontSize(12);
+        $tplPath = ROOT_DIR . '/../archive/template/Template Transport Lokal Riil.docx';
+        $outPath = $outDir . 'Transport_Lokal_Riil.docx';
 
-        $section = $phpWord->addSection([
-            'marginTop'    => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(2.54),
-            'marginBottom' => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(2.54),
-            'marginLeft'   => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(3),
-            'marginRight'  => \PhpOffice\PhpWord\Shared\Converter::cmToTwip(2.54),
-        ]);
-
-        $section->addText('DAFTAR PENGELUARAN RIIL', ['bold' => true, 'size' => 14], ['align' => 'center']);
-        $section->addTextBreak(2);
-        $section->addText('Yang bertanda tangan dibawah ini :');
-        $section->addTextBreak(1);
-
-        $idents = [
-            'Nama'        => $vars['[Pegawai]'],
-            'NIP/ID Sobat'=> $vars['[NIP]'],
-            'Jabatan'     => $vars['[Jabatan]'],
-        ];
-        foreach ($idents as $k => $v) {
-            $r = $section->addTextRun();
-            $r->addText(str_pad($k, 15), ['bold' => true]);
-            $r->addText(': ' . $v);
-        }
-        $section->addTextBreak(1);
-
-        $r = $section->addTextRun();
-        $r->addText('Berdasarkan Surat Tugas Nomor : ');
-        $r->addText($vars['[NoSurat]'], ['bold' => true]);
-        $r->addText(' tanggal ' . $vars['[TglSTugas]'] . ', dengan ini kami menyatakan dengan sesungguhnya bahwa Biaya transport pegawai/mitra dan/atau biaya penginapan dibawah ini yang tidak dapat diperoleh bukti-bukti pengeluarannya, meliputi :');
-        $section->addTextBreak(1);
-
-        // Tabel pengeluaran
-        $tblStyle = ['borderSize' => 6, 'borderColor' => '000000', 'cellMargin' => 80, 'width' => 9000];
-        $tbl = $section->addTable($tblStyle);
-        $tbl->addRow();
-        foreach (['No.', 'Uraian', 'Jumlah'] as $h) {
-            $tbl->addCell(null, ['bgColor' => 'D9D9D9'])->addText($h, ['bold' => true], ['align' => 'center']);
-        }
-        $tbl->addRow();
-        $tbl->addCell(600)->addText('1.', null, ['align' => 'center']);
-        $tbl->addCell(6800)->addText('Transport Lokal ' . $vars['[Kegiatan]'] . ' ' . $vars['[Survei]']);
-        $tbl->addCell(2000)->addText('Rp ' . $vars['[Jumlah]'], null, ['align' => 'right']);
-
-        // Jumlah total
-        $tbl->addRow();
-        $c = $tbl->addCell(7400, ['gridSpan' => 2, 'borderTopSize' => 6, 'borderTopColor' => '000000']);
-        $c->addText('Jumlah', ['bold' => true], ['align' => 'right']);
-        $tbl->addCell(2000)->addText('Rp ' . $vars['[Jumlah]'], ['bold' => true], ['align' => 'right']);
-
-        $section->addTextBreak(1);
-        $section->addText('Terbilang : ' . $vars['[Terbilang]'], ['italic' => true]);
-        $section->addTextBreak(1);
-
-        $section->addText('Jumlah uang tersebut pada angka 1 diatas benar-benar dikeluarkan untuk pelaksanaan perjalanan dinas dimaksud dan apabila dikemudian hari terdapat kelebihan atas pembayaran, kami bersedia untuk menyetorkan kelebihan tersebut ke kas negara.', null, ['align' => 'both']);
-        $section->addTextBreak(1);
-        $section->addText('Demikian pernyataan ini kami buat dengan sebenarnya, untuk dipergunakan sebagaimana mestinya.', null, ['align' => 'both']);
-        $section->addTextBreak(2);
-
-        // TTD dua kolom
-        $tblTTD = $section->addTable(['borderSize' => 0, 'cellMargin' => 50]);
-        $tblTTD->addRow();
-        $c1 = $tblTTD->addCell(5000);
-        $c1->addText('Mengetahui/Menyetujui', null, ['align' => 'center']);
-        $c1->addText('Pejabat Pembuat Komitmen,', null, ['align' => 'center']);
-        $c1->addTextBreak(4);
-        $c1->addText('Madik, S.E., M.E', ['bold' => true, 'underline' => 'single'], ['align' => 'center']);
-        $c1->addText('NIP. 19840505 200502 1 001', null, ['align' => 'center']);
-
-        $c2 = $tblTTD->addCell(5000);
-        $c2->addText('Pejabat Negara/Pegawai Negeri', null, ['align' => 'center']);
-        $c2->addText('yang melakukan perjalanan dinas', null, ['align' => 'center']);
-        $c2->addTextBreak(4);
-        $c2->addText($vars['[Pegawai]'], ['bold' => true, 'underline' => 'single'], ['align' => 'center']);
-        $c2->addText('NIP./ID Sobat ' . $vars['[NIP]'], null, ['align' => 'center']);
-
-        $out = $outDir . 'Transport_Lokal_Riil.docx';
-        $writer = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
-        $writer->save($out);
-        return $out;
+        self::fillTemplate($tplPath, $vars, $outPath);
+        return $outPath;
     }
+
 
     /** Stream zip file ke browser */
     private static function streamZip(string $path, string $filename): void
