@@ -87,26 +87,26 @@ const router = createBrowserRouter([
       },
 
       // ── Statistik Distribusi ──────────────────────────────────────
-      { path: 'statistik/sapb', element: <ErrorBoundary><SurveiPage surveiNama="SAPB" kategori="Distribusi" /></ErrorBoundary> },
+      { path: 'statistik/sapb', element: <ErrorBoundary><SurveiPage surveiNama="Survei Angkutan Penumpang dan Barang" kategori="Distribusi" /></ErrorBoundary> },
 
       // ── Statistik Harga ─────────────────────────────────────────────
-      { path: 'harga/hd',   element: <ErrorBoundary><SurveiPage surveiNama="HD"   kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/hkd',  element: <ErrorBoundary><SurveiPage surveiNama="HKD"  kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shp',  element: <ErrorBoundary><SurveiPage surveiNama="SHP"  kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shpb', element: <ErrorBoundary><SurveiPage surveiNama="SHPB" kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shkk', element: <ErrorBoundary><SurveiPage surveiNama="SHKK" kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/hd',   element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdesaan"   kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/hkd',  element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Konsumen Perdesaan"  kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shp',  element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Produsen"  kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shpb', element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdagangan Besar" kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shkk', element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Kemahalan Konstruksi" kategori="Harga" /></ErrorBoundary> },
 
       // ── KTIP ────────────────────────────────────────────────────────
-      { path: 'ktip/bumd', element: <ErrorBoundary><SurveiPage surveiNama="BUMD"    kategori="KTIP" /></ErrorBoundary> },
-      { path: 'ktip/slk',  element: <ErrorBoundary><SurveiPage surveiNama="SLK-KSP" kategori="KTIP" /></ErrorBoundary> },
-      { path: 'ktip/k3',   element: <ErrorBoundary><SurveiPage surveiNama="K3"      kategori="KTIP" /></ErrorBoundary> },
-      { path: 'ktip/vhtl', element: <ErrorBoundary><SurveiPage surveiNama="VHTL"    kategori="KTIP" /></ErrorBoundary> },
-      { path: 'ktip/vhts', element: <ErrorBoundary><SurveiPage surveiNama="VHTS"    kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/bumd', element: <ErrorBoundary><SurveiPage surveiNama="Survei Keuangan Badan Usaha Milik Daerah"    kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/slk',  element: <ErrorBoundary><SurveiPage surveiNama="Survei Lembaga Keuangan - Koperasi Simpan Pinjam" kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/k3',   element: <ErrorBoundary><SurveiPage surveiNama="Survei Keuangan Konstruksi"      kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/vhtl', element: <ErrorBoundary><SurveiPage surveiNama="Survei Hotel dan Jasa Akomodasi Lainnya Tahunan"    kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/vhts', element: <ErrorBoundary><SurveiPage surveiNama="Survei Tingkat Penghunian Kamar Hotel"    kategori="KTIP" /></ErrorBoundary> },
 
       // ── Sensus Ekonomi 2026 ────────────────────────────────────────────
-      { path: 'se2026/persiapan',   element: <ErrorBoundary><SurveiPage surveiNama="SE2026 Persiapan"              kategori="Sensus" /></ErrorBoundary> },
-      { path: 'se2026/pelaksanaan', element: <ErrorBoundary><SurveiPage surveiNama="SE2026 Pelaksanaan"            kategori="Sensus" /></ErrorBoundary> },
-      { path: 'se2026/pengolahan',  element: <ErrorBoundary><SurveiPage surveiNama="SE2026 Pengolahan & Diseminasi" kategori="Sensus" /></ErrorBoundary> },
+      { path: 'se2026/persiapan',   element: <ErrorBoundary><SurveiPage surveiNama="Persiapan Sensus Ekonomi"              kategori="Sensus" /></ErrorBoundary> },
+      { path: 'se2026/pelaksanaan', element: <ErrorBoundary><SurveiPage surveiNama="Pelaksanaan Sensus Ekonomi"            kategori="Sensus" /></ErrorBoundary> },
+      { path: 'se2026/pengolahan',  element: <ErrorBoundary><SurveiPage surveiNama="Pengolahan dan Diseminasi Sensus Ekonomi" kategori="Sensus" /></ErrorBoundary> },
 
       // ── Kelola Tugas Kegiatan (semua auth, RBAC di dalam page) ──────────
       { path: 'kelola-tugas', element: <ProtectedRoute><ErrorBoundary><TugasKegiatanPage /></ErrorBoundary></ProtectedRoute> },

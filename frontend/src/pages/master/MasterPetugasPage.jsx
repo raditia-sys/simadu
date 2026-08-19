@@ -42,7 +42,10 @@ function PetugasPage({ tipe }) {
   useEffect(() => { load(); }, [load]);
 
   function openAdd() {
-    setForm(EMPTY_FORM);
+    setForm({
+      ...EMPTY_FORM,
+      jabatan: isMitra ? 'Mitra' : '',
+    });
     setFormError('');
     setModal({ open: true, mode: 'add', row: null });
   }

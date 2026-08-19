@@ -129,6 +129,7 @@ $routes = [
     'POST /api/tugas/import-excel'     => [TugasKegiatanController::class, 'importExcel'],
     'DELETE /api/tugas/bulk'           => [TugasKegiatanController::class, 'bulkDestroy'],
     'PUT /api/tugas/bulk-selesai'      => [TugasKegiatanController::class, 'bulkSelesai'],
+    'POST /api/tugas/alokasi-tahunan'  => [TugasKegiatanController::class, 'alokasiTahunan'],
 
     'GET /api/tugas'           => [TugasKegiatanController::class, 'index'],
     'POST /api/tugas'          => [TugasKegiatanController::class, 'store'],

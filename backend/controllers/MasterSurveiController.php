@@ -5,9 +5,7 @@
 class MasterSurveiController
 {
     private static array $VALID_KATEGORI = ['Distribusi', 'Harga', 'KTIP', 'Sensus'];
-    private static array $VALID_PERIODE  = ['mingguan', 'bulanan', 'triwulanan', 'tahunan'];
-
-    public static function index(): void
+    private static array $VALID_PERIODE  = ['mingguan', 'bulanan', 'triwulanan', 'tahunan'];    public static function index(): void
     {
         requireRole('superadmin');
         $pdo    = Database::connect();
@@ -16,7 +14,7 @@ class MasterSurveiController
         if ($search !== '') {
             $like = '%' . $search . '%';
             $stmt = $pdo->prepare(
-                'SELECT id, nama_survei, kategori, jenis_periode, tautan_entri_data, materi_dokumen
+                'SELECT id, nama_survei, kategori, jenis_periode, deadline_hari, tautan_entri_data, materi_dokumen
                  FROM master_survei
                  WHERE nama_survei LIKE ? OR kategori LIKE ?
                  ORDER BY kategori, nama_survei'
@@ -24,7 +22,7 @@ class MasterSurveiController
             $stmt->execute([$like, $like]);
         } else {
             $stmt = $pdo->query(
-                'SELECT id, nama_survei, kategori, jenis_periode, tautan_entri_data, materi_dokumen
+                'SELECT id, nama_survei, kategori, jenis_periode, deadline_hari, tautan_entri_data, materi_dokumen
                  FROM master_survei
                  ORDER BY kategori, nama_survei'
             );
@@ -47,6 +45,8 @@ class MasterSurveiController
         $jenisPeriode  = clean($body['jenis_periode']);
         $tautanEntri   = clean($body['tautan_entri_data'] ?? '');
         $materiDokumen = clean($body['materi_dokumen'] ?? '');
+        $deadlineHari  = isset($body['deadline_hari']) && $body['deadline_hari'] !== ''
+                         ? max(1, min(31, (int)$body['deadline_hari'])) : null;
 
         if (!in_array($kategori, self::$VALID_KATEGORI, true)) {
             respond(false, null, 'Kategori tidak valid. Pilih: ' . implode(', ', self::$VALID_KATEGORI), 422);
@@ -57,11 +57,11 @@ class MasterSurveiController
 
         $pdo  = Database::connect();
         $stmt = $pdo->prepare(
-            'INSERT INTO master_survei (nama_survei, kategori, jenis_periode, tautan_entri_data, materi_dokumen)
-             VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO master_survei (nama_survei, kategori, jenis_periode, deadline_hari, tautan_entri_data, materi_dokumen)
+             VALUES (?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
-            $namaSurvei, $kategori, $jenisPeriode,
+            $namaSurvei, $kategori, $jenisPeriode, $deadlineHari,
             $tautanEntri ?: null, $materiDokumen ?: null,
         ]);
         $id = (int) $pdo->lastInsertId();
@@ -85,6 +85,8 @@ class MasterSurveiController
 
         $kategori     = clean($body['kategori']);
         $jenisPeriode = clean($body['jenis_periode']);
+        $deadlineHari = isset($body['deadline_hari']) && $body['deadline_hari'] !== ''
+                        ? max(1, min(31, (int)$body['deadline_hari'])) : null;
 
         if (!in_array($kategori, self::$VALID_KATEGORI, true)) {
             respond(false, null, 'Kategori tidak valid.', 422);
@@ -102,12 +104,12 @@ class MasterSurveiController
 
         $stmt = $pdo->prepare(
             'UPDATE master_survei
-             SET nama_survei = ?, kategori = ?, jenis_periode = ?,
+             SET nama_survei = ?, kategori = ?, jenis_periode = ?, deadline_hari = ?,
                  tautan_entri_data = ?, materi_dokumen = ?
              WHERE id = ?'
         );
         $stmt->execute([
-            clean($body['nama_survei']), $kategori, $jenisPeriode,
+            clean($body['nama_survei']), $kategori, $jenisPeriode, $deadlineHari,
             clean($body['tautan_entri_data'] ?? '') ?: null,
             clean($body['materi_dokumen'] ?? '') ?: null,
             $id,

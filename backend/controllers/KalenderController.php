@@ -40,40 +40,100 @@ class KalenderController
         $tahun = (int)(query('tahun') ?? date('Y'));
         $bulan = (int)(query('bulan') ?? 0); // 0 = semua bulan
 
-        // ── 1. Deadline dari tugas_kegiatan yang belum selesai ─────────────
-        $where  = ['t.tahun = ?', 't.deadline IS NOT NULL', 't.sampel_selesai < t.target_sampel'];
-        $params = [$tahun];
+        // ── 1. Ambil semua deadline unik per survei per periode ──────────────
+        // Aggregate: satu event per survei+periode (bukan per petugas)
+        // Hanya ambil tugas yang belum selesai sepenuhnya
+        $whereSql  = 'WHERE t.tahun = ? AND t.deadline IS NOT NULL
+                      AND ms.deadline_hari IS NOT NULL';
+        $params    = [$tahun];
         if ($bulan) {
-            $where[]  = 'MONTH(t.deadline) = ?';
-            $params[] = $bulan;
+            $whereSql .= ' AND MONTH(t.deadline) = ?';
+            $params[]  = $bulan;
         }
-        $whereSql = 'WHERE ' . implode(' AND ', $where);
 
         $stmtD = $pdo->prepare("
-            SELECT
-                CONCAT('tugas-', t.id) AS id,
-                ms.nama_survei AS judul,
-                t.deadline AS tanggal,
-                NULL AS tanggal_selesai,
-                'deadline' AS tipe,
-                CONCAT(p.nama, ' – ', mw.desa_kelurahan) AS keterangan,
-                t.id AS tugas_id
+            SELECT DISTINCT
+                ms.id                      AS survei_id,
+                ms.nama_survei,
+                ms.jenis_periode,
+                t.deadline,
+                t.bulan                    AS t_bulan,
+                t.triwulan_ke              AS t_triwulan,
+                t.minggu_ke                AS t_minggu
             FROM tugas_kegiatan t
-            JOIN master_survei  ms ON ms.id = t.survei_id
-            JOIN petugas         p  ON p.id  = t.petugas_id
-            JOIN master_wilayah  mw ON mw.id = t.wilayah_id
+            JOIN master_survei ms ON ms.id = t.survei_id
             $whereSql
             ORDER BY t.deadline ASC
         ");
         $stmtD->execute($params);
-        $deadlines = $stmtD->fetchAll();
+        $uniqueDeadlines = $stmtD->fetchAll();
+
+        // ── Build reminder events dari setiap deadline unik ─────────────────
+        $reminders = [];
+        foreach ($uniqueDeadlines as $dl) {
+            $deadlineDate = new DateTime($dl['deadline']);
+            $surveiNama   = $dl['nama_survei'];
+            $jenis        = $dl['jenis_periode'];
+
+            // Label periode
+            $periodeLabel = '';
+            if ($dl['t_bulan']) {
+                $bNames = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+                $periodeLabel = $bNames[(int)$dl['t_bulan']];
+                if ($dl['t_minggu']) $periodeLabel .= " Mggu {$dl['t_minggu']}";
+            } elseif ($dl['t_triwulan']) {
+                $periodeLabel = "TW {$dl['t_triwulan']}";
+            }
+
+            // Tentukan reminder hari sesuai jenis_periode
+            // Mingguan: hanya H-3 dan H
+            // Lainnya: H-5, H-3, dan H
+            $reminderDays = ($jenis === 'mingguan') ? [3, 0] : [5, 3, 0];
+
+            foreach ($reminderDays as $minus) {
+                $eventDate = clone $deadlineDate;
+                if ($minus > 0) $eventDate->modify("-{$minus} days");
+                $eventDateStr = $eventDate->format('Y-m-d');
+
+                // Filter bulan jika diminta
+                if ($bulan && (int)$eventDate->format('n') !== $bulan) continue;
+                // Filter tahun
+                if ((int)$eventDate->format('Y') !== $tahun) continue;
+
+                if ($minus === 0) {
+                    $label = "⏰ Deadline Entri: {$surveiNama}";
+                    $warna = 'danger';
+                } elseif ($minus === 3) {
+                    $label = "🔔 H-3 Deadline: {$surveiNama}";
+                    $warna = 'orange';
+                } else {
+                    $label = "📅 H-5 Deadline: {$surveiNama}";
+                    $warna = 'warning';
+                }
+                if ($periodeLabel) $label .= " ({$periodeLabel} {$tahun})";
+
+                $key = "{$dl['survei_id']}-{$dl['deadline']}-{$minus}";
+                $reminders[$key] = [
+                    'id'             => "reminder-{$key}",
+                    'judul'          => $label,
+                    'tanggal'        => $eventDateStr,
+                    'tanggal_selesai'=> null,
+                    'tipe'           => $minus === 0 ? 'deadline' : 'reminder',
+                    'keterangan'     => $periodeLabel ? "{$surveiNama} — Periode {$periodeLabel} {$tahun}" : "{$surveiNama} — Tahun {$tahun}",
+                    'warna'          => $warna,
+                    'survei_id'      => $dl['survei_id'],
+                    'deadline_asli'  => $dl['deadline'],
+                    'h_minus'        => $minus,
+                ];
+            }
+        }
 
         // ── 2. Event manual dari agenda_event ──────────────────────────────
         $stmtE = $pdo->prepare("
             SELECT
                 CONCAT('event-', e.id) AS id,
                 e.judul, e.tanggal, e.tanggal_selesai,
-                e.tipe, e.keterangan,
+                e.tipe, e.keterangan, e.warna,
                 NULL AS tugas_id
             FROM agenda_event e
             WHERE YEAR(e.tanggal) = ?
@@ -84,7 +144,7 @@ class KalenderController
         $events = $stmtE->fetchAll();
 
         respond(true, [
-            'deadlines' => $deadlines,
+            'deadlines' => array_values($reminders),
             'events'    => $events,
         ]);
     }

@@ -18,6 +18,7 @@ class TugasKegiatanController
         t.wilayah_id,  mw.kecamatan,      mw.desa_kelurahan,
         t.petugas_id,  p.nama AS nama_petugas, p.tipe AS tipe_petugas,
         t.kegiatan_id, mk.nama AS nama_peran,
+        t.pemeriksa_id, pm.nama AS nama_pemeriksa,
         t.tahun,       t.triwulan_ke,     t.bulan,            t.minggu_ke,
         t.target_sampel, t.sampel_selesai, t.deadline,
         t.created_by,  t.created_at,      t.updated_at
@@ -29,6 +30,7 @@ class TugasKegiatanController
         JOIN master_wilayah  mw ON mw.id = t.wilayah_id
         JOIN petugas          p  ON p.id  = t.petugas_id
         JOIN master_kegiatan mk  ON mk.id = t.kegiatan_id
+        LEFT JOIN petugas    pm  ON pm.id = t.pemeriksa_id
     ';
 
     // ── Helper: compute status dari target & selesai ──────────────────────────
@@ -138,6 +140,15 @@ class TugasKegiatanController
 
         $periodeFields = self::validatePeriodeFields($body, $survei['jenis_periode']);
 
+        // Validasi pemeriksa jika diisi (harus tipe pegawai)
+        $pemeriksaId = null;
+        if (!empty($body['pemeriksa_id'])) {
+            $stmtP = $pdo->prepare("SELECT id FROM petugas WHERE id = ? AND tipe = 'pegawai'");
+            $stmtP->execute([(int)$body['pemeriksa_id']]);
+            if (!$stmtP->fetch()) respond(false, null, 'Pemeriksa harus bertipe pegawai.', 422);
+            $pemeriksaId = (int)$body['pemeriksa_id'];
+        }
+
         // Unique constraint check
         self::checkUnique($pdo, $body, $periodeFields, $survei['jenis_periode']);
 
@@ -145,8 +156,8 @@ class TugasKegiatanController
             'INSERT INTO tugas_kegiatan
              (survei_id, wilayah_id, petugas_id, kegiatan_id, tahun,
               triwulan_ke, bulan, minggu_ke, target_sampel, sampel_selesai,
-              deadline, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+              deadline, pemeriksa_id, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             (int)$body['survei_id'],   (int)$body['wilayah_id'],
@@ -156,6 +167,7 @@ class TugasKegiatanController
             (int)$body['target_sampel'],
             (int)($body['sampel_selesai'] ?? 0),
             $body['deadline'],
+            $pemeriksaId,
             $user['id'],
         ]);
         $id = (int)$pdo->lastInsertId();
@@ -164,6 +176,159 @@ class TugasKegiatanController
         $stmt2 = $pdo->prepare('SELECT ' . self::SELECT_COLS . self::FROM_JOIN . ' WHERE t.id = ?');
         $stmt2->execute([$id]);
         respond(true, self::addStatus($stmt2->fetch()), 'Data tugas berhasil ditambahkan.', 201);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ALOKASI TAHUNAN — generate semua periode dalam satu tahun
+    // ─────────────────────────────────────────────────────────────────────────
+    public static function alokasiTahunan(): void
+    {
+        $user = requireRole('superadmin');
+        $body = requestBody();
+        validateRequired($body, [
+            'survei_id'    => 'Survei',
+            'wilayah_id'   => 'Wilayah',
+            'petugas_id'   => 'Petugas',
+            'kegiatan_id'  => 'Peran Kegiatan',
+            'tahun'        => 'Tahun',
+            'target_sampel'=> 'Target Sampel',
+        ]);
+
+        $pdo    = Database::connect();
+        $tahun  = (int)$body['tahun'];
+        $svId   = (int)$body['survei_id'];
+        $wlId   = (int)$body['wilayah_id'];
+        $ptId   = (int)$body['petugas_id'];
+        $kgId   = (int)$body['kegiatan_id'];
+        $target = (int)$body['target_sampel'];
+
+        // Ambil data survei
+        $stmtS = $pdo->prepare('SELECT jenis_periode, deadline_hari FROM master_survei WHERE id = ?');
+        $stmtS->execute([$svId]);
+        $survei = $stmtS->fetch();
+        if (!$survei) respond(false, null, 'Survei tidak ditemukan.', 404);
+
+        $jenis        = $survei['jenis_periode'];
+        $deadlineHari = $survei['deadline_hari'] ? (int)$survei['deadline_hari'] : null;
+
+        // Validasi pemeriksa
+        $pemeriksaId = null;
+        if (!empty($body['pemeriksa_id'])) {
+            $stmtP = $pdo->prepare("SELECT id FROM petugas WHERE id = ? AND tipe = 'pegawai'");
+            $stmtP->execute([(int)$body['pemeriksa_id']]);
+            if (!$stmtP->fetch()) respond(false, null, 'Pemeriksa harus bertipe pegawai.', 422);
+            $pemeriksaId = (int)$body['pemeriksa_id'];
+        }
+
+        // Buat daftar periode yang akan di-generate
+        $periods = [];
+        switch ($jenis) {
+            case 'tahunan':
+                $periods[] = ['bulan' => null, 'triwulan_ke' => null, 'minggu_ke' => null];
+                break;
+            case 'bulanan':
+                for ($b = 1; $b <= 12; $b++) {
+                    $periods[] = ['bulan' => $b, 'triwulan_ke' => null, 'minggu_ke' => null];
+                }
+                break;
+            case 'triwulanan':
+                for ($tw = 1; $tw <= 4; $tw++) {
+                    $periods[] = ['bulan' => null, 'triwulan_ke' => $tw, 'minggu_ke' => null];
+                }
+                break;
+            case 'mingguan':
+                for ($b = 1; $b <= 12; $b++) {
+                    for ($mg = 1; $mg <= 2; $mg++) {
+                        $periods[] = ['bulan' => $b, 'triwulan_ke' => null, 'minggu_ke' => $mg];
+                    }
+                }
+                break;
+        }
+
+        // Hitung deadline per periode
+        $calcDeadline = function(array $p) use ($tahun, $jenis, $deadlineHari): ?string {
+            if ($deadlineHari === null) return null;
+            $hari = str_pad($deadlineHari, 2, '0', STR_PAD_LEFT);
+            switch ($jenis) {
+                case 'tahunan':
+                    return "{$tahun}-12-{$hari}";
+                case 'bulanan':
+                case 'mingguan':
+                    $bl = str_pad($p['bulan'], 2, '0', STR_PAD_LEFT);
+                    // Pastikan hari valid untuk bulan tersebut
+                    $maxHari = cal_days_in_month(CAL_GREGORIAN, (int)$p['bulan'], $tahun);
+                    $hari = str_pad(min($deadlineHari, $maxHari), 2, '0', STR_PAD_LEFT);
+                    return "{$tahun}-{$bl}-{$hari}";
+                case 'triwulanan':
+                    // TW1=Mar, TW2=Jun, TW3=Sep, TW4=Des
+                    $bulanAkhir = $p['triwulan_ke'] * 3;
+                    $bl = str_pad($bulanAkhir, 2, '0', STR_PAD_LEFT);
+                    $maxHari = cal_days_in_month(CAL_GREGORIAN, $bulanAkhir, $tahun);
+                    $hari = str_pad(min($deadlineHari, $maxHari), 2, '0', STR_PAD_LEFT);
+                    return "{$tahun}-{$bl}-{$hari}";
+            }
+            return null;
+        };
+
+        // Prepare INSERT & duplicate check statements
+        $stmtCheck = $pdo->prepare(
+            'SELECT id FROM tugas_kegiatan
+             WHERE survei_id=? AND wilayah_id=? AND petugas_id=? AND kegiatan_id=? AND tahun=?
+             AND (bulan IS NOT DISTINCT FROM ? OR (bulan IS NULL AND ? IS NULL))
+             AND (triwulan_ke IS NOT DISTINCT FROM ? OR (triwulan_ke IS NULL AND ? IS NULL))
+             AND (minggu_ke IS NOT DISTINCT FROM ? OR (minggu_ke IS NULL AND ? IS NULL))'
+        );
+        $stmtInsert = $pdo->prepare(
+            'INSERT INTO tugas_kegiatan
+             (survei_id, wilayah_id, petugas_id, kegiatan_id, tahun,
+              triwulan_ke, bulan, minggu_ke, target_sampel, sampel_selesai,
+              deadline, pemeriksa_id, created_by)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        );
+
+        $inserted = 0;
+        $skipped  = 0;
+        $insertedIds = [];
+
+        foreach ($periods as $p) {
+            // Cek duplikat — gunakan NULL-safe comparison
+            $stmtCheck->execute([
+                $svId, $wlId, $ptId, $kgId, $tahun,
+                $p['bulan'],       $p['bulan'],
+                $p['triwulan_ke'], $p['triwulan_ke'],
+                $p['minggu_ke'],   $p['minggu_ke'],
+            ]);
+            if ($stmtCheck->fetch()) { $skipped++; continue; }
+
+            $deadline = $calcDeadline($p);
+            $stmtInsert->execute([
+                $svId, $wlId, $ptId, $kgId, $tahun,
+                $p['triwulan_ke'], $p['bulan'], $p['minggu_ke'],
+                $target, 0,
+                $deadline,
+                $pemeriksaId,
+                $user['id'],
+            ]);
+            $insertedIds[] = (int)$pdo->lastInsertId();
+            $inserted++;
+        }
+
+        if ($inserted > 0) {
+            logActivity($pdo, (int)$user['id'], 'alokasi_tahunan', 'tugas_kegiatan', null,
+                "{$inserted} tugas di-generate untuk survei_id={$svId}, tahun={$tahun}");
+        }
+
+        // Ambil data baris yang baru diinsert
+        $rows = [];
+        if (!empty($insertedIds)) {
+            $ph   = implode(',', array_fill(0, count($insertedIds), '?'));
+            $stmtR = $pdo->prepare('SELECT ' . self::SELECT_COLS . self::FROM_JOIN . " WHERE t.id IN ({$ph}) ORDER BY t.bulan, t.triwulan_ke, t.minggu_ke");
+            $stmtR->execute(array_values($insertedIds));
+            $rows = array_map([self::class, 'addStatus'], $stmtR->fetchAll());
+        }
+
+        $msg = "{$inserted} tugas berhasil di-generate" . ($skipped ? ", {$skipped} sudah ada (dilewati)." : '.');
+        respond(true, ['inserted' => $inserted, 'skipped' => $skipped, 'rows' => $rows], $msg, 201);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -206,11 +371,20 @@ class TugasKegiatanController
             $periodeFields = self::validatePeriodeFields($body, $survei['jenis_periode']);
             self::checkUnique($pdo, $body, $periodeFields, $survei['jenis_periode'], $id);
 
+            // Validasi pemeriksa jika diisi
+            $pemeriksaId = null;
+            if (!empty($body['pemeriksa_id'])) {
+                $stmtP = $pdo->prepare("SELECT id FROM petugas WHERE id = ? AND tipe = 'pegawai'");
+                $stmtP->execute([(int)$body['pemeriksa_id']]);
+                if (!$stmtP->fetch()) respond(false, null, 'Pemeriksa harus bertipe pegawai.', 422);
+                $pemeriksaId = (int)$body['pemeriksa_id'];
+            }
+
             $pdo->prepare(
                 'UPDATE tugas_kegiatan SET
                  survei_id=?, wilayah_id=?, petugas_id=?, kegiatan_id=?,
                  tahun=?, triwulan_ke=?, bulan=?, minggu_ke=?,
-                 target_sampel=?, sampel_selesai=?, deadline=?, updated_at=NOW()
+                 target_sampel=?, sampel_selesai=?, deadline=?, pemeriksa_id=?, updated_at=NOW()
                  WHERE id=?'
             )->execute([
                 (int)$body['survei_id'], (int)$body['wilayah_id'],
@@ -220,6 +394,7 @@ class TugasKegiatanController
                 (int)$body['target_sampel'],
                 max(0, (int)($body['sampel_selesai'] ?? 0)),
                 $body['deadline'],
+                $pemeriksaId,
                 $id,
             ]);
             logActivity($pdo, (int)$user['id'], 'update_tugas', 'tugas_kegiatan', $id);

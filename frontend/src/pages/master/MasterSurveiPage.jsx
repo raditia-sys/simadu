@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+﻿import { useState, useCallback, useEffect } from 'react';
 import DataTable from '../../components/ui/DataTable';
 import Modal, { FormField, Input, Select, Textarea } from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -14,14 +14,16 @@ const BADGE_COLORS = {
   Sensus:      'bg-status-neutral/10 text-status-neutral dark:bg-dark-status-neutral/20 dark:text-dark-status-neutral',
 };
 
-const EMPTY_FORM = { nama_survei: '', kategori: 'Distribusi', jenis_periode: 'bulanan', tautan_entri_data: '', materi_dokumen: '' };
+const EMPTY_FORM = {
+  nama_survei: '', kategori: 'Distribusi', jenis_periode: 'bulanan',
+  deadline_hari: '', tautan_entri_data: '', materi_dokumen: '',
+};
 
 export default function MasterSurveiPage() {
   const [data, setData]           = useState([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [deleting, setDeleting]   = useState(false);
-
   const [modal, setModal]         = useState({ open: false, mode: 'add', row: null });
   const [confirm, setConfirm]     = useState({ open: false, row: null });
   const [form, setForm]           = useState(EMPTY_FORM);
@@ -40,18 +42,15 @@ export default function MasterSurveiPage() {
   useEffect(() => { load(); }, [load]);
 
   function openAdd() {
-    setForm(EMPTY_FORM);
-    setFormError('');
+    setForm(EMPTY_FORM); setFormError('');
     setModal({ open: true, mode: 'add', row: null });
   }
 
   function openEdit(row) {
     setForm({
-      nama_survei:       row.nama_survei,
-      kategori:          row.kategori,
-      jenis_periode:     row.jenis_periode,
-      tautan_entri_data: row.tautan_entri_data ?? '',
-      materi_dokumen:    row.materi_dokumen ?? '',
+      nama_survei: row.nama_survei, kategori: row.kategori,
+      jenis_periode: row.jenis_periode, deadline_hari: row.deadline_hari ?? '',
+      tautan_entri_data: row.tautan_entri_data ?? '', materi_dokumen: row.materi_dokumen ?? '',
     });
     setFormError('');
     setModal({ open: true, mode: 'edit', row });
@@ -59,58 +58,43 @@ export default function MasterSurveiPage() {
 
   async function handleSave() {
     if (!form.nama_survei.trim()) { setFormError('Nama survei wajib diisi.'); return; }
-    setSaving(true);
-    setFormError('');
-    const payload = { ...form, nama_survei: form.nama_survei.trim() };
+    if (form.deadline_hari !== '' && (parseInt(form.deadline_hari) < 1 || parseInt(form.deadline_hari) > 31)) {
+      setFormError('Deadline hari harus antara 1-31.'); return;
+    }
+    setSaving(true); setFormError('');
+    const payload = {
+      ...form, nama_survei: form.nama_survei.trim(),
+      deadline_hari: form.deadline_hari !== '' ? parseInt(form.deadline_hari) : null,
+    };
     const res = modal.mode === 'add'
       ? await api.post('/master/survei', payload)
       : await api.put(`/master/survei/${modal.row.id}`, payload);
     setSaving(false);
-    if (res.success) {
-      setModal({ open: false, mode: 'add', row: null });
-      showToast(res.message);
-      load();
-    } else {
-      setFormError(res.message || 'Gagal menyimpan.');
-    }
+    if (res.success) { setModal({ open: false, mode: 'add', row: null }); showToast(res.message); load(); }
+    else setFormError(res.message || 'Gagal menyimpan.');
   }
 
   async function handleDelete() {
     setDeleting(true);
     const res = await api.delete(`/master/survei/${confirm.row.id}`);
-    setDeleting(false);
-    setConfirm({ open: false, row: null });
-    showToast(res.message);
-    if (res.success) load();
+    setDeleting(false); setConfirm({ open: false, row: null });
+    showToast(res.message); if (res.success) load();
   }
 
   const columns = [
     { key: 'nama_survei', label: 'Nama Survei' },
-    {
-      key: 'kategori', label: 'Kategori',
-      render: (row) => (
-        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${BADGE_COLORS[row.kategori] ?? ''}`}>
-          {row.kategori}
-        </span>
-      ),
-    },
-    {
-      key: 'jenis_periode', label: 'Periode',
-      render: (row) => (
-        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-status-neutral/10 text-status-neutral dark:bg-dark-status-neutral/20 dark:text-dark-status-neutral capitalize">
-          {row.jenis_periode}
-        </span>
-      ),
-    },
-    {
-      key: 'tautan_entri_data', label: 'Tautan Entri',
-      render: (row) => row.tautan_entri_data ? (
-        <a href={row.tautan_entri_data} target="_blank" rel="noreferrer"
-           className="text-navy dark:text-dark-navy text-xs underline underline-offset-2 hover:opacity-70">
-          Buka ↗
-        </a>
-      ) : '—',
-    },
+    { key: 'kategori', label: 'Kategori',
+      render: (row) => <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${BADGE_COLORS[row.kategori] ?? ''}`}>{row.kategori}</span> },
+    { key: 'jenis_periode', label: 'Periode',
+      render: (row) => <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-status-neutral/10 text-status-neutral dark:bg-dark-status-neutral/20 dark:text-dark-status-neutral capitalize">{row.jenis_periode}</span> },
+    { key: 'deadline_hari', label: 'Deadline Entri',
+      render: (row) => row.deadline_hari
+        ? <span className="text-xs font-mono text-accent-orange dark:text-dark-accent-orange font-semibold">Tgl {row.deadline_hari}</span>
+        : <span className="text-text-secondary dark:text-dark-text-secondary text-xs">-</span> },
+    { key: 'tautan_entri_data', label: 'Tautan Entri',
+      render: (row) => row.tautan_entri_data
+        ? <a href={row.tautan_entri_data} target="_blank" rel="noreferrer" className="text-navy dark:text-dark-navy text-xs underline underline-offset-2 hover:opacity-70">Buka</a>
+        : '-' },
   ];
 
   return (
@@ -118,51 +102,26 @@ export default function MasterSurveiPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-heading text-xl font-bold text-text-primary dark:text-dark-text-primary">Master Survei</h1>
-          <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-0.5">
-            Daftar survei & kegiatan statistik dengan metadata periode dan tautan entri data.
-          </p>
+          <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-0.5">Daftar survei dan kegiatan statistik dengan metadata periode dan tautan entri data.</p>
         </div>
         <button id="btn-tambah-survei" onClick={openAdd} className="btn-primary flex items-center gap-2 whitespace-nowrap">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
           Tambah Survei
         </button>
       </div>
-
       <div className="card p-5">
-        <DataTable
-          columns={columns}
-          data={data}
-          loading={loading}
-          onEdit={openEdit}
+        <DataTable columns={columns} data={data} loading={loading} onEdit={openEdit}
           onDelete={(row) => setConfirm({ open: true, row })}
-          searchKeys={['nama_survei', 'kategori']}
-          searchPlaceholder="Cari nama atau kategori survei..."
-          emptyMessage="Belum ada data survei."
-        />
+          searchKeys={['nama_survei', 'kategori']} searchPlaceholder="Cari nama atau kategori survei..."
+          emptyMessage="Belum ada data survei." />
       </div>
-
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg">
-          {toast}
-        </div>
-      )}
-
-      <Modal
-        isOpen={modal.open}
-        onClose={() => setModal({ ...modal, open: false })}
-        title={modal.mode === 'add' ? 'Tambah Survei' : 'Edit Survei'}
-        size="lg"
-        footer={
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setModal({ ...modal, open: false })} className="btn-secondary text-sm px-4 py-2">Batal</button>
-            <button id="btn-simpan-survei" onClick={handleSave} disabled={saving} className="btn-primary text-sm px-4 py-2 disabled:opacity-60">
-              {saving ? 'Menyimpan...' : 'Simpan'}
-            </button>
-          </div>
-        }
-      >
+      {toast && <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg">{toast}</div>}
+      <Modal isOpen={modal.open} onClose={() => setModal({ ...modal, open: false })}
+        title={modal.mode === 'add' ? 'Tambah Survei' : 'Edit Survei'} size="lg"
+        footer={<div className="flex justify-end gap-2">
+          <button onClick={() => setModal({ ...modal, open: false })} className="btn-secondary text-sm px-4 py-2">Batal</button>
+          <button id="btn-simpan-survei" onClick={handleSave} disabled={saving} className="btn-primary text-sm px-4 py-2 disabled:opacity-60">{saving ? 'Menyimpan...' : 'Simpan'}</button>
+        </div>}>
         <div className="space-y-4">
           {formError && <p className="text-sm text-accent-orange dark:text-dark-accent-orange">{formError}</p>}
           <FormField label="Nama Survei" required>
@@ -180,22 +139,20 @@ export default function MasterSurveiPage() {
               </Select>
             </FormField>
           </div>
-          <FormField label="Tautan Entri Data" hint="URL ke sistem entri data eksternal (akan dibuka di tab baru).">
+          <FormField label="Deadline Entri Data (Hari ke-)" hint="Misal: 15 = deadline setiap tanggal 15 per periode. Kosongkan jika tidak ada deadline rutin.">
+            <Input id="input-deadline-hari" type="number" min="1" max="31"
+              value={form.deadline_hari} onChange={(e) => setForm({ ...form, deadline_hari: e.target.value })} placeholder="Contoh: 15" />
+          </FormField>
+          <FormField label="Tautan Entri Data" hint="URL ke sistem entri data eksternal.">
             <Input id="input-tautan" type="url" value={form.tautan_entri_data} onChange={(e) => setForm({ ...form, tautan_entri_data: e.target.value })} placeholder="https://..." />
           </FormField>
-          <FormField label="Materi / Dokumen" hint="Deskripsi singkat materi survei atau link dokumen terkait.">
+          <FormField label="Materi / Dokumen" hint="Deskripsi singkat materi survei.">
             <Textarea id="input-materi" value={form.materi_dokumen} onChange={(e) => setForm({ ...form, materi_dokumen: e.target.value })} placeholder="Deskripsi materi survei..." />
           </FormField>
         </div>
       </Modal>
-
-      <ConfirmDialog
-        isOpen={confirm.open}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirm({ open: false, row: null })}
-        loading={deleting}
-        message={`Hapus survei "${confirm.row?.nama_survei}"?`}
-      />
+      <ConfirmDialog isOpen={confirm.open} onConfirm={handleDelete} onCancel={() => setConfirm({ open: false, row: null })}
+        loading={deleting} message={`Hapus survei "${confirm.row?.nama_survei}"?`} />
     </div>
   );
 }

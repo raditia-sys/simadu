@@ -297,22 +297,23 @@ INSERT INTO master_kegiatan (id, nama) VALUES
 (7, 'Petugas Pemeriksa Lapangan');
 
 -- ── Master Survei: survei-survei dari Bagian 3 (sidebar navigation) ───────────
+-- ── Master Survei: survei-survei dari Bagian 3 (sidebar navigation) ───────────
 INSERT INTO master_survei (nama_survei, kategori, jenis_periode) VALUES
 -- Statistik Distribusi
-('SAPB - Survei Arus Perdagangan Besar',                            'Distribusi', 'bulanan'),
+('Survei Angkutan Penumpang dan Barang',                            'Distribusi', 'bulanan'),
 -- Statistik Harga
-('HD - Harga Dasar',                                                'Harga',      'mingguan'),
-('HKD - Harga Konsumen Desa',                                       'Harga',      'mingguan'),
-('SHP - Survei Harga Perdagangan Besar',                            'Harga',      'bulanan'),
-('SHPB - Survei Harga Produksi Benih',                              'Harga',      'bulanan'),
-('SHKK - Survei Harga Konsumen Khusus',                             'Harga',      'bulanan'),
+('Survei Harga Perdesaan',                                          'Harga',      'mingguan'),
+('Survei Harga Konsumen Perdesaan',                                 'Harga',      'mingguan'),
+('Survei Harga Produsen',                                           'Harga',      'bulanan'),
+('Survei Harga Perdagangan Besar',                                  'Harga',      'bulanan'),
+('Survei Harga Kemahalan Konstruksi',                               'Harga',      'bulanan'),
 -- KTIP
-('BUMD - Survei Keuangan BUMD',                                     'KTIP',       'tahunan'),
-('SLK-KSP - Survei Lembaga Keuangan KSP',                          'KTIP',       'tahunan'),
-('K3 - Survei Keuangan Konstruksi',                                  'KTIP',       'tahunan'),
-('VHTL - Survei Volume Hotel dan Akomodasi',                        'KTIP',       'bulanan'),
-('VHTS - Survei Volume Hotel dan Akomodasi Syariah',                'KTIP',       'bulanan'),
+('Survei Keuangan Badan Usaha Milik Daerah',                         'KTIP',       'tahunan'),
+('Survei Lembaga Keuangan - Koperasi Simpan Pinjam',                'KTIP',       'tahunan'),
+('Survei Keuangan Konstruksi',                                      'KTIP',       'tahunan'),
+('Survei Hotel dan Jasa Akomodasi Lainnya Tahunan',                 'KTIP',       'bulanan'),
+('Survei Tingkat Penghunian Kamar Hotel',                           'KTIP',       'bulanan'),
 -- Sensus Ekonomi
-('SE2026 - Persiapan Sensus Ekonomi',                               'Sensus',     'tahunan'),
-('SE2026 - Pelaksanaan Sensus Ekonomi',                             'Sensus',     'tahunan'),
-('SE2026 - Pengolahan dan Diseminasi Sensus Ekonomi',               'Sensus',     'tahunan');
+('Persiapan Sensus Ekonomi',                                        'Sensus',     'tahunan'),
+('Pelaksanaan Sensus Ekonomi',                                      'Sensus',     'tahunan'),
+('Pengolahan dan Diseminasi Sensus Ekonomi',                        'Sensus',     'tahunan');

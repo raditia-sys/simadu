@@ -18,20 +18,47 @@ class SurveiStatistikController
     public static function info(): void
     {
         requireAuth();
+        $id   = query('id');
         $nama = trim(query('nama') ?? '');
-        if ($nama === '') respond(false, null, 'Parameter nama wajib diisi.', 422);
+        if ($nama === '' && !$id) respond(false, null, 'Parameter nama atau id wajib diisi.', 422);
 
-        $pdo  = Database::connect();
+        $pdo = Database::connect();
 
-        // Coba exact match dulu, lalu fallback ke LIKE
-        $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE nama_survei = ? LIMIT 1');
-        $stmt->execute([$nama]);
-        $survei = $stmt->fetch();
-
-        if (!$survei) {
-            $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE nama_survei LIKE ? LIMIT 1');
-            $stmt->execute(['%' . $nama . '%']);
+        if ($id) {
+            $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE id = ? LIMIT 1');
+            $stmt->execute([(int)$id]);
             $survei = $stmt->fetch();
+        } else {
+            $aliases = [
+                'SAPB' => 'Survei Angkutan Penumpang dan Barang',
+                'HD' => 'Survei Harga Perdesaan',
+                'HKD' => 'Survei Harga Konsumen Perdesaan',
+                'SHP' => 'Survei Harga Produsen',
+                'SHPB' => 'Survei Harga Perdagangan Besar',
+                'SHKK' => 'Survei Harga Kemahalan Konstruksi',
+                'BUMD' => 'Survei Keuangan Badan Usaha Milik Daerah',
+                'SLK' => 'Survei Lembaga Keuangan - Koperasi Simpan Pinjam',
+                'SLK-KSP' => 'Survei Lembaga Keuangan - Koperasi Simpan Pinjam',
+                'K3' => 'Survei Keuangan Konstruksi',
+                'VHTL' => 'Survei Hotel dan Jasa Akomodasi Lainnya Tahunan',
+                'VHTS' => 'Survei Tingkat Penghunian Kamar Hotel',
+                'SE2026 Persiapan' => 'Persiapan Sensus Ekonomi',
+                'SE2026 Pelaksanaan' => 'Pelaksanaan Sensus Ekonomi',
+                'SE2026 Pengolahan & Diseminasi' => 'Pengolahan dan Diseminasi Sensus Ekonomi',
+            ];
+
+            $searchName = $aliases[strtoupper($nama)] ?? $aliases[$nama] ?? $nama;
+
+            // Coba exact match dulu, lalu fallback ke LIKE
+            $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE nama_survei = ? LIMIT 1');
+            $stmt->execute([$searchName]);
+            $survei = $stmt->fetch();
+
+            if (!$survei) {
+                $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE nama_survei LIKE ? LIMIT 1');
+                $stmt->execute(['%' . $searchName . '%']);
+                $survei = $stmt->fetch();
+            }
         }
 
         if (!$survei) {

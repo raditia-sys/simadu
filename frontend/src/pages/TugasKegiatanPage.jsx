@@ -5,6 +5,7 @@ import RadialProgress from '../components/ui/RadialProgress';
 import ColumnSelector from '../components/ui/ColumnSelector';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import TugasForm from '../components/TugasForm';
+import AlokasiTahunanModal from '../components/AlokasiTahunanModal';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 
 // ─── Konstanta ────────────────────────────────────────────────────────────────
@@ -28,16 +29,17 @@ const KATEGORI_BADGE = {
 
 // Definisi kolom tabel
 const ALL_COLUMNS = [
-  { key: 'survei',    label: 'Survei',   alwaysVisible: true },
-  { key: 'wilayah',   label: 'Wilayah' },
-  { key: 'petugas',   label: 'Petugas',  alwaysVisible: true },
-  { key: 'peran',     label: 'Peran' },
-  { key: 'periode',   label: 'Periode' },
-  { key: 'target',    label: 'Target' },
-  { key: 'selesai',   label: 'Selesai' },
-  { key: 'progress',  label: 'Progres' },
-  { key: 'status',    label: 'Status',   alwaysVisible: true },
-  { key: 'deadline',  label: 'Deadline' },
+  { key: 'survei',     label: 'Survei',    alwaysVisible: true },
+  { key: 'wilayah',    label: 'Wilayah' },
+  { key: 'petugas',    label: 'Petugas',   alwaysVisible: true },
+  { key: 'peran',      label: 'Peran' },
+  { key: 'pemeriksa',  label: 'Pemeriksa' },
+  { key: 'periode',    label: 'Periode' },
+  { key: 'target',     label: 'Target' },
+  { key: 'selesai',    label: 'Selesai' },
+  { key: 'progress',   label: 'Progres' },
+  { key: 'status',     label: 'Status',    alwaysVisible: true },
+  { key: 'deadline',   label: 'Deadline' },
 ];
 
 // ─── Filter state awal ────────────────────────────────────────────────────────
@@ -179,11 +181,12 @@ export default function TugasKegiatanPage() {
   const [selected,   setSelected]   = useState(new Set());
 
   // ── Modals ──────────────────────────────────────────────────────────────────
-  const [tugasModal, setTugasModal]   = useState({ open: false, mode: 'add', row: null });
-  const [confirm,    setConfirm]      = useState({ open: false, type: '', ids: [] });
-  const [importing,  setImporting]    = useState(false);
+  const [tugasModal,   setTugasModal]   = useState({ open: false, mode: 'add', row: null });
+  const [alokasiModal, setAlokasiModal] = useState(false);
+  const [confirm,      setConfirm]      = useState({ open: false, type: '', ids: [] });
+  const [importing,    setImporting]    = useState(false);
   const [importResult, setImportResult] = useState(null);
-  const [deleting,   setDeleting]     = useState(false);
+  const [deleting,     setDeleting]     = useState(false);
   const [toast,      setToast]        = useState('');
 
   // ── Column visibility ───────────────────────────────────────────────────────
@@ -416,6 +419,16 @@ export default function TugasKegiatanPage() {
                 </svg>
                 Tambah
               </button>
+
+              <button
+                id="btn-alokasi-tahunan"
+                onClick={() => setAlokasiModal(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border border-navy/30 bg-navy/5 text-navy dark:border-dark-navy/40 dark:bg-dark-navy/10 dark:text-dark-navy hover:bg-navy/10 dark:hover:bg-dark-navy/20 transition-all">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                </svg>
+                Alokasi Tahunan
+              </button>
             </>
           )}
         </div>
@@ -468,6 +481,7 @@ export default function TugasKegiatanPage() {
                 {visible.wilayah && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Wilayah</th>}
                 {visible.petugas && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Petugas</th>}
                 {visible.peran && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Peran</th>}
+                {visible.pemeriksa && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Pemeriksa</th>}
                 {visible.periode && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Periode</th>}
                 {visible.target && <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Target</th>}
                 {visible.selesai && <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Selesai</th>}
@@ -559,6 +573,15 @@ export default function TugasKegiatanPage() {
                     {visible.peran && (
                       <td className="px-4 py-3 text-sm text-text-primary dark:text-dark-text-primary max-w-36 truncate" title={row.nama_peran}>
                         {row.nama_peran}
+                      </td>
+                    )}
+
+                    {/* Pemeriksa */}
+                    {visible.pemeriksa && (
+                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-dark-text-secondary">
+                        {row.nama_pemeriksa
+                          ? <span className="text-text-primary dark:text-dark-text-primary">{row.nama_pemeriksa}</span>
+                          : <span className="text-xs text-text-secondary/60 dark:text-dark-text-secondary/60">—</span>}
                       </td>
                     )}
 
@@ -664,6 +687,13 @@ export default function TugasKegiatanPage() {
           initialData={tugasModal.row}
           onClose={() => setTugasModal({ open: false, mode: 'add', row: null })}
           onSaved={() => load()}
+        />
+      )}
+
+      {alokasiModal && (
+        <AlokasiTahunanModal
+          onClose={() => setAlokasiModal(false)}
+          onSaved={() => { setAlokasiModal(false); load(); }}
         />
       )}
 

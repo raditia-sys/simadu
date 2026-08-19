@@ -6,15 +6,27 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const HARI  = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 
-// Warna event per tipe
+// Warna event per tipe/warna
+const WARNA_CLASS = {
+  danger:  'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800/40',
+  orange:  'bg-accent-orange/15 text-accent-orange border-accent-orange/30 dark:bg-dark-accent-orange/15 dark:text-dark-accent-orange dark:border-dark-accent-orange/30',
+  warning: 'bg-yellow-50 text-yellow-600 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-700/40',
+  navy:    'bg-navy/10 text-navy border-navy/20 dark:bg-dark-navy/15 dark:text-dark-navy dark:border-dark-navy/30',
+};
+
 const TIPE_CLASS = {
-  deadline: 'bg-accent-orange/15 text-accent-orange border-accent-orange/30 dark:bg-dark-accent-orange/15 dark:text-dark-accent-orange dark:border-dark-accent-orange/30',
-  umum:     'bg-navy/10 text-navy border-navy/20 dark:bg-dark-navy/15 dark:text-dark-navy dark:border-dark-navy/30',
+  deadline: WARNA_CLASS.orange,
+  reminder: WARNA_CLASS.warning,
+  umum:     WARNA_CLASS.navy,
   rapat:    'bg-status-neutral/15 text-status-neutral border-status-neutral/30 dark:bg-dark-status-neutral/15 dark:text-dark-status-neutral dark:border-dark-status-neutral/30',
   pelatihan:'bg-navy/8 text-navy/70 border-navy/15 dark:bg-dark-navy/10 dark:text-dark-navy/80 dark:border-dark-navy/20',
 };
 
-function getTipeClass(tipe) { return TIPE_CLASS[tipe] || TIPE_CLASS.umum; }
+function getTipeClass(evt) {
+  // Gunakan warna eksplisit jika ada (dari deadline reminders backend)
+  if (evt.warna && WARNA_CLASS[evt.warna]) return WARNA_CLASS[evt.warna];
+  return TIPE_CLASS[evt.tipe] || TIPE_CLASS.umum;
+}
 
 // ─── Form tambah event ────────────────────────────────────────────────────────
 function EventForm({ initialDate, onClose, onSaved }) {
@@ -216,7 +228,7 @@ export default function KalenderPage() {
                   </div>
                   <div className="space-y-0.5">
                     {dayItems.slice(0, 3).map((item, j) => (
-                      <div key={j} className={`text-xs px-1.5 py-0.5 rounded border truncate ${getTipeClass(item.tipe)}`}>
+                      <div key={j} className={`text-xs px-1.5 py-0.5 rounded border truncate ${getTipeClass(item)}`}>
                         {item.judul}
                       </div>
                     ))}
@@ -249,8 +261,8 @@ export default function KalenderPage() {
             allItems.map((item, i) => (
               <div key={i} className="px-5 py-3 flex items-start justify-between gap-3 hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
                 <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 px-2 py-0.5 rounded-full text-xs border ${getTipeClass(item.tipe)} flex-shrink-0`}>
-                    {item.tipe === 'deadline' ? '⚠' : '●'}
+                  <div className={`mt-0.5 px-2 py-0.5 rounded-full text-xs border ${getTipeClass(item)} flex-shrink-0`}>
+                    {item.tipe === 'deadline' ? '⏰' : item.tipe === 'reminder' ? '🔔' : '●'}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-text-primary dark:text-dark-text-primary">{item.judul}</p>
