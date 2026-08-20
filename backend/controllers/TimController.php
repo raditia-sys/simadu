@@ -29,7 +29,7 @@ class TimController
 
         $stmt = $pdo->prepare("
             SELECT
-                p.id, p.nama, p.tipe, p.nip_atau_kode_mitra, p.kontak,
+                p.id, p.nama, p.tipe, p.nip_atau_kode_mitra, p.jabatan, p.kontak,
                 COUNT(DISTINCT t.id) AS total_tugas,
                 SUM(CASE WHEN t.sampel_selesai >= t.target_sampel AND t.target_sampel > 0 THEN 1 ELSE 0 END) AS tugas_selesai,
                 ROUND(
@@ -38,7 +38,7 @@ class TimController
             FROM petugas p
             LEFT JOIN tugas_kegiatan t ON t.petugas_id = p.id
             $whereSql
-            GROUP BY p.id, p.nama, p.tipe, p.nip_atau_kode_mitra, p.kontak
+            GROUP BY p.id, p.nama, p.tipe, p.nip_atau_kode_mitra, p.jabatan, p.kontak
             ORDER BY p.tipe, p.nama
         ");
         $stmt->execute($params);
