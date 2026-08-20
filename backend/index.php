@@ -9,17 +9,21 @@ declare(strict_types=1);
 
 define('ROOT_DIR', __DIR__);
 
+$appConfig = file_exists(ROOT_DIR . '/config/config.php') ? require ROOT_DIR . '/config/config.php' : [];
+define('APP_ENV', $appConfig['app']['env'] ?? 'development');
+
 // ─── Error reporting ──────────────────────────────────────────────────────────
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
 // ─── Session ──────────────────────────────────────────────────────────────────
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') == 443;
 session_start([
     'cookie_httponly' => true,
     'cookie_samesite' => 'Lax',
-    'cookie_secure'   => false,   // true di production (HTTPS)
-    // cookie_domain tidak diset → ikuti hostname browser (localhost:5173 via proxy)
+    'cookie_secure'   => $isHttps,
+    'use_strict_mode' => true,
 ]);
 
 // ─── CORS — development only ──────────────────────────────────────────────────
@@ -211,11 +215,10 @@ function dispatch(string $method, string $uri, array $routes): void
 
 // ─── Error handler global ─────────────────────────────────────────────────────
 set_exception_handler(function (Throwable $e) {
+    error_log((string)$e);
     $isDev = defined('APP_ENV') && APP_ENV === 'development';
     respond(false, $isDev ? ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()] : null,
         'Terjadi kesalahan server.', 500);
 });
-
-define('APP_ENV', 'development');
 
 dispatch($method, $uri, $routes);

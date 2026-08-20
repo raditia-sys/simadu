@@ -204,15 +204,20 @@ class KalenderController
     // ─────────────────────────────────────────────────────────────────────────
     public static function update(int $id): void
     {
-        requireAuth();
+        $user = requireAuth();
         $pdo  = Database::connect();
         self::ensureTable($pdo);
 
         $body = requestBody();
 
-        $stmt = $pdo->prepare('SELECT id FROM agenda_event WHERE id = ?');
+        $stmt = $pdo->prepare('SELECT id, created_by FROM agenda_event WHERE id = ?');
         $stmt->execute([$id]);
-        if (!$stmt->fetch()) respond(false, null, 'Event tidak ditemukan.', 404);
+        $event = $stmt->fetch();
+        if (!$event) respond(false, null, 'Event tidak ditemukan.', 404);
+
+        if ($user['role'] !== 'superadmin' && (int)($event['created_by'] ?? 0) !== (int)$user['id']) {
+            respond(false, null, 'Anda tidak memiliki hak untuk mengubah event ini.', 403);
+        }
 
         $cols = []; $params = [];
         foreach (['judul','tanggal','tanggal_selesai','tipe','keterangan','warna'] as $c) {
@@ -237,13 +242,18 @@ class KalenderController
     // ─────────────────────────────────────────────────────────────────────────
     public static function delete(int $id): void
     {
-        requireAuth();
+        $user = requireAuth();
         $pdo = Database::connect();
         self::ensureTable($pdo);
 
-        $stmt = $pdo->prepare('SELECT id FROM agenda_event WHERE id = ?');
+        $stmt = $pdo->prepare('SELECT id, created_by FROM agenda_event WHERE id = ?');
         $stmt->execute([$id]);
-        if (!$stmt->fetch()) respond(false, null, 'Event tidak ditemukan.', 404);
+        $event = $stmt->fetch();
+        if (!$event) respond(false, null, 'Event tidak ditemukan.', 404);
+
+        if ($user['role'] !== 'superadmin' && (int)($event['created_by'] ?? 0) !== (int)$user['id']) {
+            respond(false, null, 'Anda tidak memiliki hak untuk menghapus event ini.', 403);
+        }
 
         $pdo->prepare('DELETE FROM agenda_event WHERE id = ?')->execute([$id]);
         respond(true, null, 'Event dihapus.');

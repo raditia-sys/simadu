@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Modal, { FormField, Input, Select } from '../components/ui/Modal';
+import Pagination from '../components/ui/Pagination';
 
 const KATEGORI_ICONS = {
   PDF:       '📄',
@@ -149,6 +150,8 @@ export default function ManajemenDokumenPage() {
   const [editDoc,      setEditDoc]      = useState(null);
   const [confirmId,    setConfirmId]    = useState(null);
   const [deleting,     setDeleting]     = useState(false);
+  const [page,         setPage]         = useState(1);
+  const [perPage,      setPerPage]      = useState(10);
 
   // Form mode: 'file' | 'link'
   const [addMode,      setAddMode]      = useState('file');
@@ -370,101 +373,124 @@ export default function ManajemenDokumenPage() {
       </div>
 
       {/* Daftar dokumen */}
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-navy/5 dark:bg-dark-navy/10">
-              {['Dokumen / Link','Kategori','Survei','Ukuran / Tipe','Diunggah oleh','Tanggal','Aksi'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              Array.from({length: 5}).map((_, i) => (
-                <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft">
-                  {Array.from({length: 7}).map((_, j) => (
-                    <td key={j} className="px-4 py-3"><div className="h-3 rounded-full bg-status-neutral/15 animate-pulse" style={{width: `${40+j*9}%`}} /></td>
-                  ))}
-                </tr>
-              ))
-            ) : data.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">Belum ada dokumen atau tautan.</td></tr>
-            ) : (
-              data.map(doc => {
-                const isLink = doc.mime_type === 'text/url' || doc.path?.startsWith('http');
-                return (
-                  <tr key={doc.id} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{getIconByMime(doc.mime_type, doc.path)}</span>
-                        <div className="min-w-0">
-                          <span className="text-sm font-medium text-text-primary dark:text-dark-text-primary max-w-48 block truncate" title={doc.nama_file}>
-                            {doc.nama_file}
+      <div className="card p-5 space-y-4">
+        <div className="overflow-x-auto rounded-xl border border-border-soft dark:border-dark-border-soft">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-navy/5 dark:bg-dark-navy/10">
+                {['Dokumen / Link','Kategori','Survei','Ukuran / Tipe','Diunggah oleh','Tanggal','Aksi'].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({length: 5}).map((_, i) => (
+                  <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft">
+                    {Array.from({length: 7}).map((_, j) => (
+                      <td key={j} className="px-4 py-3"><div className="h-3 rounded-full bg-status-neutral/15 animate-pulse" style={{width: `${40+j*9}%`}} /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : data.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">Belum ada dokumen atau tautan.</td></tr>
+              ) : (
+                (() => {
+                  const isAll = perPage === 'all';
+                  const effectivePerPage = isAll ? (data.length || 1) : Number(perPage);
+                  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(data.length / effectivePerPage));
+                  const safePage = Math.min(Math.max(1, page), totalPages);
+                  const startIndex = isAll ? 0 : (safePage - 1) * effectivePerPage;
+                  const endIndex = isAll ? data.length : Math.min(startIndex + effectivePerPage, data.length);
+                  const paginatedDocs = isAll ? data : data.slice(startIndex, endIndex);
+
+                  return paginatedDocs.map(doc => {
+                    const isLink = doc.mime_type === 'text/url' || doc.path?.startsWith('http');
+                    return (
+                      <tr key={doc.id} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{getIconByMime(doc.mime_type, doc.path)}</span>
+                            <div className="min-w-0">
+                              <span className="text-sm font-medium text-text-primary dark:text-dark-text-primary max-w-48 block truncate" title={doc.nama_file}>
+                                {doc.nama_file}
+                              </span>
+                              {isLink && (
+                                <span className="text-[11px] text-text-secondary dark:text-dark-text-secondary font-mono truncate max-w-48 block">
+                                  {doc.path}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-navy/8 text-navy dark:bg-dark-navy/15 dark:text-dark-navy">
+                            {doc.kategori}
                           </span>
-                          {isLink && (
-                            <span className="text-[11px] text-text-secondary dark:text-dark-text-secondary font-mono truncate max-w-48 block">
-                              {doc.path}
-                            </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary truncate max-w-36">
+                          {doc.nama_survei || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary">
+                          {formatBytes(doc.ukuran_byte, doc.mime_type, doc.path)}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary">
+                          {doc.uploaded_by_nama || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
+                          {doc.uploaded_at?.slice(0, 10)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <a href={isLink ? doc.path : `/api/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all" title={isLink ? "Buka Link" : "Download"}>
+                              {isLink ? (
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                              )}
+                            </a>
+                            {isSuperadmin && (
+                            <>
+                              <button onClick={() => setEditDoc(doc)}
+                                className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all" title="Edit">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                                </svg>
+                              </button>
+                              <button onClick={() => setConfirmId(doc.id)}
+                                className="p-1.5 rounded-lg text-text-secondary hover:text-accent-orange hover:bg-accent-orange/8 dark:text-dark-text-secondary dark:hover:text-dark-accent-orange dark:hover:bg-dark-accent-orange/15 transition-all" title="Hapus">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                              </button>
+                            </>
                           )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-navy/8 text-navy dark:bg-dark-navy/15 dark:text-dark-navy">
-                        {doc.kategori}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary truncate max-w-36">
-                      {doc.nama_survei || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary">
-                      {formatBytes(doc.ukuran_byte, doc.mime_type, doc.path)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary">
-                      {doc.uploaded_by_nama || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
-                      {doc.uploaded_at?.slice(0, 10)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <a href={isLink ? doc.path : `/api/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all" title={isLink ? "Buka Link" : "Download"}>
-                          {isLink ? (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                            </svg>
-                          )}
-                        </a>
-                        {isSuperadmin && (
-                        <>
-                          <button onClick={() => setEditDoc(doc)}
-                            className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all" title="Edit">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
-                            </svg>
-                          </button>
-                          <button onClick={() => setConfirmId(doc.id)}
-                            className="p-1.5 rounded-lg text-text-secondary hover:text-accent-orange hover:bg-accent-orange/8 dark:text-dark-text-secondary dark:hover:text-dark-accent-orange dark:hover:bg-dark-accent-orange/15 transition-all" title="Hapus">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                            </svg>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                      </td>
+                    </tr>
+                    );
+                  });
+                })()
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {!loading && (
+          <Pagination
+            totalItems={data.length}
+            page={page}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={(p) => { setPerPage(p); setPage(1); }}
+            label="dokumen"
+          />
+        )}
       </div>
 
       {/* Toast */}

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import RadialProgress from '../components/ui/RadialProgress';
 import ProgressRingGrid from '../components/survei/ProgressRingGrid';
+import Pagination from '../components/ui/Pagination';
 
 const KATEGORI_BADGE = {
   Distribusi: 'bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy',
@@ -49,9 +50,12 @@ export default function SurveiPage({ surveiNama, kategori }) {
   const [drillKec,     setDrillKec]       = useState(null); // kecamatan yang sedang dibuka
 
   // ── Petugas tabel ─────────────────────────────────────────────────────────
-  const [petugasData,  setPetugasData]    = useState([]);
+  const [petugasData,    setPetugasData]    = useState([]);
   const [petugasLoading, setPetugasLoading] = useState(false);
-  const [showPetugas,  setShowPetugas]    = useState(false);
+  const [showPetugas,    setShowPetugas]    = useState(false);
+  const [petugasPage,    setPetugasPage]    = useState(1);
+  const [petugasPerPage, setPetugasPerPage] = useState(10);
+  const [petugasSearch,  setPetugasSearch]  = useState('');
 
   // ── Dokumen ───────────────────────────────────────────────────────────────
   const [dokumen, setDokumen] = useState([]);
@@ -296,102 +300,156 @@ export default function SurveiPage({ surveiNama, kategori }) {
           )}
 
           {/* ── Tab: Data Petugas ───────────────────────────────────────────── */}
-          {tab === 'petugas' && (
-            <div className="card overflow-hidden">
-              <div className="px-5 py-4 border-b border-border-soft dark:border-dark-border-soft">
-                <h2 className="font-heading font-semibold text-sm text-text-primary dark:text-dark-text-primary">
-                  Data Petugas — {survei.nama_survei} ({tahun})
-                </h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-navy/4 dark:bg-dark-navy/8">
-                      {['Petugas','Tipe','Peran','Wilayah','Periode','Target','Selesai','Progres','Deadline'].map((h) => (
-                        <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide whitespace-nowrap">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {petugasLoading ? (
-                      Array.from({ length: 5 }).map((_, i) => (
-                        <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft">
-                          {Array.from({ length: 9 }).map((_, j) => (
-                            <td key={j} className="px-4 py-3">
-                              <div className="h-3 rounded-full bg-status-neutral/15 animate-pulse" style={{ width: `${40 + j * 7}%` }} />
-                            </td>
-                          ))}
-                        </tr>
-                      ))
-                    ) : petugasData.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">
-                          Belum ada petugas terdaftar untuk survei ini pada periode tersebut.
-                        </td>
+          {tab === 'petugas' && (() => {
+            const filteredPetugas = (petugasData || []).filter((r) => {
+              if (!petugasSearch.trim()) return true;
+              const q = petugasSearch.toLowerCase();
+              return (
+                (r.nama_petugas || '').toLowerCase().includes(q) ||
+                (r.tipe_petugas || '').toLowerCase().includes(q) ||
+                (r.nama_peran || '').toLowerCase().includes(q) ||
+                (r.desa_kelurahan || '').toLowerCase().includes(q) ||
+                (r.kecamatan || '').toLowerCase().includes(q)
+              );
+            });
+
+            const totalItems = filteredPetugas.length;
+            const isAll = petugasPerPage === 'all';
+            const effectivePerPage = isAll ? (totalItems || 1) : Number(petugasPerPage);
+            const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalItems / effectivePerPage));
+            const safePage = Math.min(Math.max(1, petugasPage), totalPages);
+
+            const startIndex = isAll ? 0 : (safePage - 1) * effectivePerPage;
+            const endIndex = isAll ? totalItems : Math.min(startIndex + effectivePerPage, totalItems);
+            const paginatedPetugas = isAll ? filteredPetugas : filteredPetugas.slice(startIndex, endIndex);
+
+            return (
+              <div className="card p-5 space-y-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap border-b border-border-soft dark:border-dark-border-soft pb-3">
+                  <div>
+                    <h2 className="font-heading font-semibold text-sm text-text-primary dark:text-dark-text-primary">
+                      Data Petugas — {survei.nama_survei} ({tahun})
+                    </h2>
+                    <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5">
+                      Daftar alokasi beban tugas, wilayah, target, dan realisasi sampel petugas.
+                    </p>
+                  </div>
+
+                  {/* Search bar */}
+                  <div className="relative w-full sm:w-64">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                    <input
+                      type="search"
+                      value={petugasSearch}
+                      onChange={(e) => { setPetugasSearch(e.target.value); setPetugasPage(1); }}
+                      placeholder="Cari nama / peran / desa..."
+                      className="w-full pl-9 pr-3.5 py-1.5 rounded-xl text-xs bg-bg-page dark:bg-dark-bg-page border border-border-soft dark:border-dark-border-soft text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-border-soft dark:border-dark-border-soft">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-navy/4 dark:bg-dark-navy/8">
+                        {['Petugas','Tipe','Peran','Wilayah','Periode','Target','Selesai','Progres','Deadline'].map((h) => (
+                          <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide whitespace-nowrap">
+                            {h}
+                          </th>
+                        ))}
                       </tr>
-                    ) : (
-                      petugasData.map((row) => {
-                        const persen = parseFloat(row.persen) || 0;
-                        // Format periode ringkas
-                        let periodeLabel = String(row.tahun);
-                        if (row.jenis_periode === 'mingguan')   periodeLabel += ` / Mggu ${row.minggu_ke} Bln ${row.bulan}`;
-                        else if (row.jenis_periode === 'bulanan') periodeLabel += ` / Bln ${row.bulan}`;
-                        else if (row.jenis_periode === 'triwulanan') periodeLabel += ` / TW ${row.triwulan_ke}`;
-
-                        const isLate = row.deadline && new Date(row.deadline) < new Date() && persen < 100;
-
-                        return (
-                          <tr key={row.id} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
-                            <td className="px-4 py-3 font-medium text-text-primary dark:text-dark-text-primary whitespace-nowrap">
-                              {row.nama_petugas}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${row.tipe_petugas === 'pegawai' ? 'bg-navy/8 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'bg-accent-orange/8 text-accent-orange dark:bg-dark-accent-orange/15 dark:text-dark-accent-orange'}`}>
-                                {row.tipe_petugas}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary max-w-36 truncate" title={row.nama_peran}>
-                              {row.nama_peran}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
-                              <span className="text-text-primary dark:text-dark-text-primary">{row.desa_kelurahan}</span>
-                              <br />
-                              <span className="text-text-secondary dark:text-dark-text-secondary">{row.kecamatan}</span>
-                            </td>
-                            <td className="px-4 py-3 font-mono text-xs text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
-                              {periodeLabel}
-                            </td>
-                            <td className="px-4 py-3 text-right font-mono tabular-nums text-text-primary dark:text-dark-text-primary">
-                              {row.target_sampel}
-                            </td>
-                            <td className="px-4 py-3 text-right font-mono tabular-nums text-text-primary dark:text-dark-text-primary">
-                              {row.sampel_selesai}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-16 h-1.5 rounded-full bg-status-neutral/15 overflow-hidden">
-                                  <div className={`h-full rounded-full ${persen >= 100 ? 'bg-navy dark:bg-dark-navy' : persen > 0 ? 'bg-accent-orange dark:bg-dark-accent-orange' : 'bg-status-neutral dark:bg-dark-status-neutral'}`}
-                                    style={{ width: `${Math.min(100, persen)}%` }} />
-                                </div>
-                                <span className="text-xs font-mono tabular-nums text-text-secondary dark:text-dark-text-secondary w-9 text-right">
-                                  {persen}%
-                                </span>
-                              </div>
-                            </td>
-                            <td className={`px-4 py-3 text-xs font-mono whitespace-nowrap ${isLate ? 'text-accent-orange dark:text-dark-accent-orange font-semibold' : 'text-text-secondary dark:text-dark-text-secondary'}`}>
-                              {isLate && '⚠ '}{row.deadline || '—'}
-                            </td>
+                    </thead>
+                    <tbody>
+                      {petugasLoading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                          <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft">
+                            {Array.from({ length: 9 }).map((_, j) => (
+                              <td key={j} className="px-4 py-3">
+                                <div className="h-3 rounded-full bg-status-neutral/15 animate-pulse" style={{ width: `${40 + j * 7}%` }} />
+                              </td>
+                            ))}
                           </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+                        ))
+                      ) : paginatedPetugas.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">
+                            Belum ada petugas terdaftar untuk survei ini pada periode tersebut.
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedPetugas.map((row) => {
+                          const persen = parseFloat(row.persen) || 0;
+                          let periodeLabel = String(row.tahun);
+                          if (row.jenis_periode === 'mingguan')   periodeLabel += ` / Mggu ${row.minggu_ke} Bln ${row.bulan}`;
+                          else if (row.jenis_periode === 'bulanan') periodeLabel += ` / Bln ${row.bulan}`;
+                          else if (row.jenis_periode === 'triwulanan') periodeLabel += ` / TW ${row.triwulan_ke}`;
+
+                          const isLate = row.deadline && new Date(row.deadline) < new Date() && persen < 100;
+
+                          return (
+                            <tr key={row.id} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
+                              <td className="px-4 py-3 font-medium text-text-primary dark:text-dark-text-primary whitespace-nowrap">
+                                {row.nama_petugas}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${row.tipe_petugas === 'pegawai' ? 'bg-navy/8 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'bg-accent-orange/8 text-accent-orange dark:bg-dark-accent-orange/15 dark:text-dark-accent-orange'}`}>
+                                  {row.tipe_petugas}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary max-w-36 truncate" title={row.nama_peran}>
+                                {row.nama_peran}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
+                                <span className="text-text-primary dark:text-dark-text-primary">{row.desa_kelurahan}</span>
+                                <br />
+                                <span className="text-text-secondary dark:text-dark-text-secondary">{row.kecamatan}</span>
+                              </td>
+                              <td className="px-4 py-3 font-mono text-xs text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
+                                {periodeLabel}
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono tabular-nums text-text-primary dark:text-dark-text-primary">
+                                {row.target_sampel}
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono tabular-nums text-text-primary dark:text-dark-text-primary">
+                                {row.sampel_selesai}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <div className="w-16 h-1.5 rounded-full bg-status-neutral/15 overflow-hidden">
+                                    <div className={`h-full rounded-full ${persen >= 100 ? 'bg-navy dark:bg-dark-navy' : persen > 0 ? 'bg-accent-orange dark:bg-dark-accent-orange' : 'bg-status-neutral dark:bg-dark-status-neutral'}`}
+                                      style={{ width: `${Math.min(100, persen)}%` }} />
+                                  </div>
+                                  <span className="text-xs font-mono tabular-nums text-text-secondary dark:text-dark-text-secondary w-9 text-right">
+                                    {persen}%
+                                  </span>
+                                </div>
+                              </td>
+                              <td className={`px-4 py-3 text-xs font-mono whitespace-nowrap ${isLate ? 'text-accent-orange dark:text-dark-accent-orange font-semibold' : 'text-text-secondary dark:text-dark-text-secondary'}`}>
+                                {isLate && '⚠ '}{row.deadline || '—'}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {!petugasLoading && (
+                  <Pagination
+                    totalItems={totalItems}
+                    page={safePage}
+                    perPage={petugasPerPage}
+                    onPageChange={setPetugasPage}
+                    onPerPageChange={(p) => { setPetugasPerPage(p); setPetugasPage(1); }}
+                    label="petugas"
+                  />
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── Tab: Materi & Dokumen ───────────────────────────────────────── */}
           {tab === 'dokumen' && (

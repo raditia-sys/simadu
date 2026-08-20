@@ -10,8 +10,15 @@ class MasterSurveiController
     private static function extractFields(array $body): array
     {
         $kode         = trim($body['kode_survei'] ?? '');
-        $tautanEntri  = clean($body['tautan_entri_data'] ?? '');
+        $tautanEntri  = trim($body['tautan_entri_data'] ?? '');
         $materiDok    = clean($body['materi_dokumen'] ?? '');
+
+        if ($tautanEntri !== '') {
+            if (!filter_var($tautanEntri, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $tautanEntri)) {
+                respond(false, null, 'Tautan entri data harus berupa URL yang valid diawali http:// atau https://.', 422);
+            }
+        }
+
         $deadlineHari = isset($body['deadline_hari']) && $body['deadline_hari'] !== ''
                         ? max(1, min(31, (int)$body['deadline_hari'])) : null;
 

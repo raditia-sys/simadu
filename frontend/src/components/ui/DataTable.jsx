@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Pagination from './Pagination';
 
 /**
- * DataTable — tabel data reusable dengan search, empty state, loading.
+ * DataTable — tabel data reusable dengan search, pagination, empty state, loading.
  *
  * Props:
  * - columns: Array<{ key, label, render?: (row) => ReactNode, className?: string }>
@@ -14,6 +15,8 @@ import { useState } from 'react';
  * - searchPlaceholder: string
  * - emptyMessage: string
  * - actions?: (row) => ReactNode — custom action slot per row
+ * - defaultPerPage?: number | 'all' (default: 10)
+ * - perPageOptions?: Array<number | 'all'> (default: [10, 50, 100, 'all'])
  */
 export default function DataTable({
   columns = [],
@@ -26,8 +29,17 @@ export default function DataTable({
   searchPlaceholder = 'Cari...',
   emptyMessage = 'Belum ada data.',
   actions,
+  defaultPerPage = 10,
+  perPageOptions = [10, 50, 100, 'all'],
 }) {
   const [search, setSearch] = useState('');
+  const [perPage, setPerPage] = useState(defaultPerPage);
+  const [page, setPage] = useState(1);
+
+  // Reset ke halaman 1 saat search atau perPage berubah
+  useEffect(() => {
+    setPage(1);
+  }, [search, perPage]);
 
   // Filter client-side
   const filtered = search.trim()
@@ -38,13 +50,23 @@ export default function DataTable({
       )
     : data;
 
+  const totalItems = filtered.length;
+  const isAll = perPage === 'all';
+  const effectivePerPage = isAll ? (totalItems || 1) : Number(perPage);
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalItems / effectivePerPage));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+
+  const startIndex = isAll ? 0 : (safePage - 1) * effectivePerPage;
+  const endIndex = isAll ? totalItems : Math.min(startIndex + effectivePerPage, totalItems);
+  const paginatedData = isAll ? filtered : filtered.slice(startIndex, endIndex);
+
   const hasActions = onEdit || onDelete || actions;
 
   return (
     <div className="space-y-3">
-      {/* Search bar */}
+      {/* Top Controls: Search Bar & Info */}
       {searchKeys.length > 0 && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="relative flex-1 max-w-xs">
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary dark:text-dark-text-secondary pointer-events-none"
@@ -68,7 +90,7 @@ export default function DataTable({
           </div>
           {search && (
             <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
-              {filtered.length} dari {data.length} data
+              Ditemukan {filtered.length} dari total {data.length} data
             </span>
           )}
         </div>
@@ -111,7 +133,7 @@ export default function DataTable({
                   )}
                 </tr>
               ))
-            ) : filtered.length === 0 ? (
+            ) : paginatedData.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length + (hasActions ? 1 : 0)}
@@ -121,7 +143,7 @@ export default function DataTable({
                 </td>
               </tr>
             ) : (
-              filtered.map((row) => (
+              paginatedData.map((row) => (
                 <tr
                   key={row[keyField]}
                   className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/5 transition-colors"
@@ -171,13 +193,19 @@ export default function DataTable({
         </table>
       </div>
 
-      {/* Row count */}
-      {!loading && filtered.length > 0 && (
-        <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
-          Menampilkan {filtered.length} data
-          {data.length !== filtered.length ? ` (dari total ${data.length})` : ''}
-        </p>
+      {/* Pagination & Row Count Footer */}
+      {!loading && (
+        <Pagination
+          totalItems={totalItems}
+          page={safePage}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={setPerPage}
+          perPageOptions={perPageOptions}
+          label="data"
+        />
       )}
     </div>
   );
 }
+

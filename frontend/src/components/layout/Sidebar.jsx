@@ -155,6 +155,113 @@ function SectionLabel({ label }) {
   );
 }
 
+// ─── Collapsed Mini Navbar Popup Components ─────────────────────────────────
+function CollapsedNavPopup({
+  id,
+  icon,
+  title,
+  activePrefixes = [],
+  activePopup,
+  setActivePopup,
+  position = 'top',
+  children,
+}) {
+  const location = useLocation();
+  const isActive = activePrefixes.some((p) => location.pathname.startsWith(p));
+  const isOpen = activePopup === id;
+
+  const toggle = (e) => {
+    e.stopPropagation();
+    setActivePopup(isOpen ? null : id);
+  };
+
+  const posClass =
+    position === 'bottom'
+      ? 'bottom-0 origin-bottom-left'
+      : 'top-0 origin-top-left';
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={toggle}
+        className={`w-full flex items-center justify-center p-2 rounded-xl transition-all ${
+          isOpen || isActive
+            ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy font-semibold shadow-xs'
+            : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'
+        }`}
+        title={title}
+      >
+        <Icon path={ICONS[icon]} className="w-5 h-5" />
+      </button>
+
+      {/* Flyout Mini Navbar Pop-up */}
+      {isOpen && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute left-[calc(100%+10px)] ${posClass} z-50 w-64 bg-surface dark:bg-dark-surface rounded-2xl shadow-soft-xl border border-border-soft dark:border-dark-border-soft p-3 animate-in fade-in zoom-in-95 duration-150`}
+        >
+          {/* Header Pop-up */}
+          <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-border-soft dark:border-dark-border-soft">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy flex items-center justify-center">
+                <Icon path={ICONS[icon]} className="w-3.5 h-3.5" />
+              </div>
+              <span className="font-heading font-bold text-xs text-text-primary dark:text-dark-text-primary">
+                {title}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActivePopup(null)}
+              className="p-1 rounded-lg text-text-secondary/60 hover:text-text-primary dark:text-dark-text-secondary/60 dark:hover:text-dark-text-primary hover:bg-navy/5 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Links inside Pop-up */}
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+            {children}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PopupLink({ to, label, onSelect }) {
+  return (
+    <NavLink
+      to={to}
+      onClick={onSelect}
+      className={({ isActive }) =>
+        `flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+          isActive
+            ? 'bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy font-semibold'
+            : 'text-text-secondary hover:text-text-primary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:text-dark-text-primary dark:hover:bg-dark-navy/10'
+        }`
+      }
+    >
+      <span className="truncate">{label}</span>
+      <Icon path={ICONS.chevronRight} className="w-3 h-3 opacity-40" />
+    </NavLink>
+  );
+}
+
+function PopupSection({ title, children }) {
+  return (
+    <div className="space-y-0.5">
+      <p className="px-2.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-text-secondary/60 dark:text-dark-text-secondary/60">
+        {title}
+      </p>
+      {children}
+    </div>
+  );
+}
+
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 /**
  * Sidebar navigation.
@@ -165,53 +272,211 @@ function SectionLabel({ label }) {
  */
 export default function Sidebar({ collapsed = false, userRole = 'superadmin' }) {
   const isSuperadmin = userRole === 'superadmin';
+  const location = useLocation();
+  const [activePopup, setActivePopup] = useState(null);
+
+  // Close popup on route change
+  useEffect(() => {
+    setActivePopup(null);
+  }, [location.pathname]);
+
+  // Click outside listener to close popup
+  useEffect(() => {
+    if (!activePopup) return;
+    const handleOutsideClick = () => {
+      setActivePopup(null);
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [activePopup]);
 
   if (collapsed) {
-    // Collapsed: icon-only sidebar (no labels)
+    // Collapsed: icon-only sidebar with interactive pop-up mini navbars
     return (
-      <aside className="flex flex-col h-full sidebar-w-collapsed sidebar-transition overflow-hidden border-r border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface">
+      <aside className="relative flex flex-col h-full sidebar-w-collapsed sidebar-transition border-r border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface z-30">
         {/* Logo mark */}
-        <div className="flex items-center justify-center h-14 border-b border-border-soft dark:border-dark-border-soft">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-navy to-accent-orange flex items-center justify-center">
+        <div className="flex items-center justify-center h-14 border-b border-border-soft dark:border-dark-border-soft flex-shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-navy to-accent-orange flex items-center justify-center shadow-xs">
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
             </svg>
           </div>
         </div>
-        <nav className="flex-1 overflow-y-auto scrollbar-none py-3 px-2 space-y-1">
-          {/* Only icons shown when collapsed — tooltips would be added in full implementation */}
-          <NavLink to="/dashboard" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Dasbor Utama">
+
+        <nav className="flex-1 py-3 px-2 space-y-1">
+          {/* Dasbor Utama */}
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              `flex items-center justify-center p-2 rounded-xl transition-all ${
+                isActive
+                  ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy font-semibold shadow-xs'
+                  : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'
+              }`
+            }
+            title="Dasbor Utama"
+          >
             <Icon path={ICONS.dashboard} className="w-5 h-5" />
           </NavLink>
-          <NavLink to="/statistik/sapb" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Kegiatan Statistik">
-            <Icon path={ICONS.kegiatan} className="w-5 h-5" />
-          </NavLink>
-          <NavLink to="/se2026/persiapan" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Sensus Ekonomi">
-            <Icon path={ICONS.sensus} className="w-5 h-5" />
-          </NavLink>
-          <NavLink to="/kelola-tugas" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Kelola Tugas Kegiatan">
+
+          {/* Pop-up: Kegiatan Statistik */}
+          <CollapsedNavPopup
+            id="kegiatan"
+            icon="kegiatan"
+            title="Kegiatan Statistik"
+            activePrefixes={['/statistik', '/harga', '/ktip']}
+            activePopup={activePopup}
+            setActivePopup={setActivePopup}
+            position="top"
+          >
+            <PopupSection title="Statistik Distribusi">
+              <PopupLink to="/statistik/sapb" label="SAPB" onSelect={() => setActivePopup(null)} />
+            </PopupSection>
+
+            <PopupSection title="Statistik Harga">
+              <PopupLink to="/harga/hd" label="HD (SHPed)" onSelect={() => setActivePopup(null)} />
+              <PopupLink to="/harga/hkd" label="HKD (SHPed)" onSelect={() => setActivePopup(null)} />
+              <PopupLink to="/harga/shp" label="SHP" onSelect={() => setActivePopup(null)} />
+              <PopupLink to="/harga/shpb" label="SHPB Bulanan" onSelect={() => setActivePopup(null)} />
+              <PopupLink to="/harga/shpb-mingguan" label="SHPB Mingguan" onSelect={() => setActivePopup(null)} />
+              <PopupLink to="/harga/shkk" label="SHKK" onSelect={() => setActivePopup(null)} />
+            </PopupSection>
+
+            <PopupSection title="KTIP">
+              <PopupLink to="/ktip/bumd" label="BUMD" onSelect={() => setActivePopup(null)} />
+              <PopupLink to="/ktip/slk" label="SLK-KSP" onSelect={() => setActivePopup(null)} />
+              <PopupLink to="/ktip/k3" label="K3" onSelect={() => setActivePopup(null)} />
+              <PopupLink to="/ktip/vhtl" label="VHTL" onSelect={() => setActivePopup(null)} />
+              <PopupLink to="/ktip/vhts" label="VHTS" onSelect={() => setActivePopup(null)} />
+            </PopupSection>
+          </CollapsedNavPopup>
+
+          {/* Pop-up: Sensus Ekonomi */}
+          <CollapsedNavPopup
+            id="sensus"
+            icon="sensus"
+            title="Sensus Ekonomi"
+            activePrefixes={['/se2026']}
+            activePopup={activePopup}
+            setActivePopup={setActivePopup}
+            position="top"
+          >
+            <PopupLink to="/se2026/persiapan" label="Persiapan" onSelect={() => setActivePopup(null)} />
+            <PopupLink to="/se2026/pelaksanaan" label="Pelaksanaan" onSelect={() => setActivePopup(null)} />
+            <PopupLink to="/se2026/pengolahan" label="Pengolahan & Diseminasi" onSelect={() => setActivePopup(null)} />
+          </CollapsedNavPopup>
+
+          {/* Kelola Tugas */}
+          <NavLink
+            to="/kelola-tugas"
+            className={({ isActive }) =>
+              `flex items-center justify-center p-2 rounded-xl transition-all ${
+                isActive
+                  ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy font-semibold shadow-xs'
+                  : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'
+              }`
+            }
+            title="Kelola Tugas Kegiatan"
+          >
             <Icon path={ICONS.tugas} className="w-5 h-5" />
           </NavLink>
-          <NavLink to="/dokumen" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Manajemen Dokumen">
+
+          {/* Manajemen Dokumen */}
+          <NavLink
+            to="/dokumen"
+            className={({ isActive }) =>
+              `flex items-center justify-center p-2 rounded-xl transition-all ${
+                isActive
+                  ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy font-semibold shadow-xs'
+                  : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'
+              }`
+            }
+            title="Manajemen Dokumen"
+          >
             <Icon path={ICONS.dokumen} className="w-5 h-5" />
           </NavLink>
-          <NavLink to="/perjalanan" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Laporan Perjalanan Dinas">
+
+          {/* Laporan Perjalanan Dinas */}
+          <NavLink
+            to="/perjalanan"
+            className={({ isActive }) =>
+              `flex items-center justify-center p-2 rounded-xl transition-all ${
+                isActive
+                  ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy font-semibold shadow-xs'
+                  : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'
+              }`
+            }
+            title="Laporan Perjalanan Dinas"
+          >
             <Icon path={ICONS.perjalanan} className="w-5 h-5" />
           </NavLink>
-          <NavLink to="/kalender" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Kalender & Agenda">
+
+          {/* Kalender & Agenda */}
+          <NavLink
+            to="/kalender"
+            className={({ isActive }) =>
+              `flex items-center justify-center p-2 rounded-xl transition-all ${
+                isActive
+                  ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy font-semibold shadow-xs'
+                  : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'
+              }`
+            }
+            title="Kalender & Agenda"
+          >
             <Icon path={ICONS.kalender} className="w-5 h-5" />
           </NavLink>
-          <NavLink to="/tim" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Tim & Organisasi">
+
+          {/* Tim & Organisasi */}
+          <NavLink
+            to="/tim"
+            className={({ isActive }) =>
+              `flex items-center justify-center p-2 rounded-xl transition-all ${
+                isActive
+                  ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy font-semibold shadow-xs'
+                  : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'
+              }`
+            }
+            title="Tim & Organisasi"
+          >
             <Icon path={ICONS.tim} className="w-5 h-5" />
           </NavLink>
+
+          {/* Admin / Superadmin features */}
           {isSuperadmin && (
             <>
-              <NavLink to="/log" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Log Aktivitas">
+              <div className="pt-2 border-t border-border-soft dark:border-dark-border-soft" />
+
+              {/* Log Aktivitas */}
+              <NavLink
+                to="/log"
+                className={({ isActive }) =>
+                  `flex items-center justify-center p-2 rounded-xl transition-all ${
+                    isActive
+                      ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy font-semibold shadow-xs'
+                      : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'
+                  }`
+                }
+                title="Log Aktivitas"
+              >
                 <Icon path={ICONS.log} className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/master/wilayah" className={({ isActive }) => `flex items-center justify-center p-2 rounded-xl transition-all ${isActive ? 'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy' : 'text-text-secondary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:bg-dark-navy/10'}`} title="Master Data">
-                <Icon path={ICONS.master} className="w-5 h-5" />
-              </NavLink>
+
+              {/* Pop-up: Master Data */}
+              <CollapsedNavPopup
+                id="master"
+                icon="master"
+                title="Master Data"
+                activePrefixes={['/master']}
+                activePopup={activePopup}
+                setActivePopup={setActivePopup}
+                position="bottom"
+              >
+                <PopupLink to="/master/wilayah" label="Master Wilayah" onSelect={() => setActivePopup(null)} />
+                <PopupLink to="/master/pegawai" label="Master Pegawai" onSelect={() => setActivePopup(null)} />
+                <PopupLink to="/master/mitra" label="Master Mitra" onSelect={() => setActivePopup(null)} />
+                <PopupLink to="/master/survei" label="Master Survei" onSelect={() => setActivePopup(null)} />
+                <PopupLink to="/master/kegiatan" label="Master Kegiatan" onSelect={() => setActivePopup(null)} />
+              </CollapsedNavPopup>
             </>
           )}
         </nav>

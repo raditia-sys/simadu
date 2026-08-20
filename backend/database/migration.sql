@@ -288,13 +288,13 @@ CREATE TABLE laporan_perjalanan_dinas (
 -- SEED DATA
 -- =============================================================================
 
--- ── Users: default superadmin (password: 'simadu2025' — GANTI setelah deploy!) ──
+-- ── Users: default accounts (password: 'bps1504' untuk tim distribusi) ──
 INSERT INTO users (nama, username, password_hash, role) VALUES
 ('Super Administrator', 'superadmin', '$2y$12$placeholder_change_before_deploy_superadmin', 'superadmin'),
-('Administrator', 'admin', '$2y$12$placeholder_change_before_deploy_admin', 'admin');
--- CATATAN: password_hash di atas adalah placeholder.
--- Ganti dengan hash bcrypt yang benar saat membangun modul auth (Tahap 3).
--- Gunakan: password_hash('password_baru', PASSWORD_BCRYPT, ['cost' => 12])
+('Administrator',       'admin',      '$2y$12$placeholder_change_before_deploy_admin',      'admin'),
+('Rina Agustina',       'rina',       '$2y$12$placeholder_change_before_deploy_admin',      'admin'),
+('Imelda Salsabila',    'imelda',     '$2y$12$placeholder_change_before_deploy_admin',      'admin'),
+('Alief Raditia Ali',   'alief',      '$2y$12$placeholder_change_before_deploy_admin',      'admin');
 
 -- ── Master Kegiatan: 7 peran standar (sesuai Bagian 5) ───────────────────────
 INSERT INTO master_kegiatan (id, nama) VALUES

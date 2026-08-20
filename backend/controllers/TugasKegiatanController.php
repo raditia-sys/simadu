@@ -336,7 +336,7 @@ class TugasKegiatanController
     // ─────────────────────────────────────────────────────────────────────────
     public static function update(int $id): void
     {
-        $user = requireAuth();
+        $user = requireRole('superadmin', 'admin');
         $body = requestBody();
         $pdo  = Database::connect();
 
@@ -355,7 +355,7 @@ class TugasKegiatanController
             $pdo->prepare('UPDATE tugas_kegiatan SET sampel_selesai = ?, updated_at = NOW() WHERE id = ?')
                 ->execute([$selesai, $id]);
             logActivity($pdo, (int)$user['id'], 'update_selesai_tugas', 'tugas_kegiatan', $id, "sampel_selesai={$selesai}");
-        } else {
+        } elseif ($user['role'] === 'superadmin') {
             // Superadmin: update semua field
             validateRequired($body, [
                 'survei_id' => 'Survei', 'wilayah_id' => 'Wilayah',
@@ -398,6 +398,8 @@ class TugasKegiatanController
                 $id,
             ]);
             logActivity($pdo, (int)$user['id'], 'update_tugas', 'tugas_kegiatan', $id);
+        } else {
+            respond(false, null, 'Akses ditolak.', 403);
         }
 
         $stmt2 = $pdo->prepare('SELECT ' . self::SELECT_COLS . self::FROM_JOIN . ' WHERE t.id = ?');
@@ -496,7 +498,7 @@ class TugasKegiatanController
             $spreadsheet = $reader->load($file['tmp_name']);
             $sheet       = $spreadsheet->getActiveSheet();
         } catch (Throwable $e) {
-            respond(false, null, 'Gagal membaca file Excel: ' . $e->getMessage(), 422);
+            respond(false, null, 'Gagal membaca file Excel.', 422);
         }
 
         $headers = [
@@ -594,6 +596,10 @@ class TugasKegiatanController
                     $triwulan_ke, $bulan, $minggu_ke, $target, $selesai, $deadline, $user['id']]);
 
                 $imported++;
+            } catch (PDOException $e) {
+                $failed++;
+                error_log('Import Excel DB Error: ' . $e->getMessage());
+                $errors[] = ['baris' => $r, 'pesan' => 'Gagal menyimpan ke database (duplikat atau format tidak sesuai).'];
             } catch (Throwable $e) {
                 $failed++;
                 $errors[] = ['baris' => $r, 'pesan' => $e->getMessage()];
@@ -639,11 +645,18 @@ class TugasKegiatanController
         ];
         self::styleHeader($sheet, $exportHeaders);
 
+        $sanitizeFormula = function (mixed $val): mixed {
+            if (is_string($val) && preg_match('/^[=\+\-@\t\r]/', $val)) {
+                return "'" . $val;
+            }
+            return $val;
+        };
+
         // Data
         foreach ($rows as $i => $row) {
             $r = $i + 2;
             $pct = calcPersen((int)$row['target_sampel'], (int)$row['sampel_selesai']);
-            $sheet->fromArray([
+            $rowData = [
                 $row['nama_survei'], $row['kategori'],
                 $row['kecamatan'], $row['desa_kelurahan'],
                 $row['nama_petugas'], $row['tipe_petugas'], $row['nama_peran'],
@@ -651,7 +664,8 @@ class TugasKegiatanController
                 $row['target_sampel'], $row['sampel_selesai'], $pct . '%',
                 calcStatus((int)$row['target_sampel'], (int)$row['sampel_selesai']),
                 $row['deadline'],
-            ], null, 'A' . $r);
+            ];
+            $sheet->fromArray(array_map($sanitizeFormula, $rowData), null, 'A' . $r);
         }
 
         self::autoWidth($sheet, count($exportHeaders));

@@ -23,6 +23,14 @@ class LaporanPerjalananController
         return $row;
     }
 
+    private static function authorizeOwnerOrAdmin(array $laporan): void
+    {
+        $currentUser = requireAuth();
+        if ($currentUser['role'] !== 'superadmin' && (int)($laporan['created_by'] ?? 0) !== (int)$currentUser['id']) {
+            respond(false, null, 'Anda tidak memiliki hak akses untuk data perjalanan dinas ini.', 403);
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // INDEX — daftar laporan
     // ─────────────────────────────────────────────────────────────────────────
@@ -174,6 +182,7 @@ class LaporanPerjalananController
         requireAuth();
         $pdo  = Database::connect();
         $row  = self::findOrFail($pdo, $id);
+        self::authorizeOwnerOrAdmin($row);
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
         // Jika wilayah berubah, recalculate biaya kecuali override manual
@@ -210,7 +219,8 @@ class LaporanPerjalananController
     {
         requireAuth();
         $pdo  = Database::connect();
-        self::findOrFail($pdo, $id);
+        $row  = self::findOrFail($pdo, $id);
+        self::authorizeOwnerOrAdmin($row);
 
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
         $rows = $body['rundown'] ?? [];
@@ -249,7 +259,8 @@ class LaporanPerjalananController
     {
         requireAuth();
         $pdo = Database::connect();
-        self::findOrFail($pdo, $id);
+        $row = self::findOrFail($pdo, $id);
+        self::authorizeOwnerOrAdmin($row);
 
         if (empty($_FILES['foto'])) respond(false, null, 'Tidak ada file foto.', 422);
 
@@ -309,6 +320,8 @@ class LaporanPerjalananController
     {
         requireAuth();
         $pdo = Database::connect();
+        $laporan = self::findOrFail($pdo, $id);
+        self::authorizeOwnerOrAdmin($laporan);
 
         $stmt = $pdo->prepare('SELECT * FROM laporan_perjalanan_dinas_dokumentasi WHERE id = ? AND laporan_id = ?');
         $stmt->execute([$fotoId, $id]);
@@ -331,6 +344,7 @@ class LaporanPerjalananController
         requireAuth();
         $pdo = Database::connect();
         $laporan = self::findOrFail($pdo, $id);
+        self::authorizeOwnerOrAdmin($laporan);
 
         // Update ringkasan jika dikirim
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -413,6 +427,7 @@ class LaporanPerjalananController
         requireAuth();
         $pdo     = Database::connect();
         $laporan = self::findOrFail($pdo, $id);
+        self::authorizeOwnerOrAdmin($laporan);
 
         if ($laporan['status_pengisian'] !== 'selesai') {
             respond(false, null, 'Laporan belum selesai di-generate.', 409);
@@ -434,6 +449,7 @@ class LaporanPerjalananController
         requireAuth();
         $pdo  = Database::connect();
         $row  = self::findOrFail($pdo, $id);
+        self::authorizeOwnerOrAdmin($row);
 
         // Hapus folder upload
         $dir = ROOT_DIR . "/uploads/perjalanan/$id/";

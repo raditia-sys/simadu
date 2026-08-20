@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../lib/api';
 import WizardStepBar from '../components/perjalanan/WizardStepBar';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Pagination from '../components/ui/Pagination';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatRupiah(n) {
@@ -422,9 +423,10 @@ export default function LaporanPerjalananPage() {
   const [toast,    setToast]    = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // Filters
   const [fPetugas, setFPetugas] = useState('');
   const [fStatus,  setFStatus]  = useState('');
+  const [page,     setPage]     = useState(1);
+  const [perPage,  setPerPage]  = useState(10);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
 
@@ -604,101 +606,124 @@ export default function LaporanPerjalananPage() {
       </div>
 
       {/* Tabel daftar */}
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-navy/5 dark:bg-dark-navy/10">
-              {['Petugas','Nomor Surat','Wilayah Tujuan','Tanggal','Durasi','Biaya','Survei','Progress','Status','Aksi'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide whitespace-nowrap">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading || loadingDetail ? (
-              Array.from({length: 4}).map((_, i) => (
-                <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft">
-                  {Array.from({length: 10}).map((_, j) => (
-                    <td key={j} className="px-4 py-3"><div className="h-3 rounded-full bg-status-neutral/15 animate-pulse" style={{width:`${40+j*5}%`}} /></td>
-                  ))}
-                </tr>
-              ))
-            ) : list.length === 0 ? (
-              <tr><td colSpan={10} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">Belum ada laporan perjalanan dinas.</td></tr>
-            ) : (
-              list.map(row => {
-                const durasi = diffDays(row.tanggal_berangkat, row.tanggal_kembali);
-                return (
-                  <tr key={row.id} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-medium text-text-primary dark:text-dark-text-primary">{row.nama_petugas}</p>
-                      <p className="text-xs text-text-secondary dark:text-dark-text-secondary capitalize">{row.jabatan || row.tipe_petugas}</p>
-                    </td>
-                    <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary max-w-24 truncate">{row.nomor_surat || '—'}</td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm text-text-primary dark:text-dark-text-primary">{row.desa_kelurahan}</p>
-                      <p className="text-xs text-text-secondary dark:text-dark-text-secondary">{row.kecamatan}</p>
-                    </td>
-                    <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
-                      {row.tanggal_berangkat}<br />{row.tanggal_kembali}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-center font-semibold text-text-primary dark:text-dark-text-primary">
-                      {durasi !== null ? `${durasi} hr` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-mono whitespace-nowrap text-text-primary dark:text-dark-text-primary">
-                      {formatRupiah(row.biaya_transport)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary max-w-28 truncate">
-                      {row.nama_survei || '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
-                          {row.jumlah_rundown ?? 0} kegiatan
-                        </span>
-                        <span className="text-text-secondary/30 dark:text-dark-text-secondary/30">·</span>
-                        <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
-                          {row.jumlah_foto ?? 0} foto
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium ${STATUS_BADGE[row.status_pengisian] || ''}`}>
-                        {row.status_pengisian}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        {/* Lanjutkan / Edit wizard */}
-                        <button onClick={() => resumeWizard(row)} title={row.status_pengisian === 'draft' ? 'Lanjutkan wizard' : 'Buka wizard'}
-                          className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all">
-                          {row.status_pengisian === 'draft' ? (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487 18.549 2.8a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                          )}
-                        </button>
-
-                        {/* Download ulang (jika selesai) */}
-                        {row.status_pengisian === 'selesai' && (
-                          <button onClick={() => redownload(row)} title="Download ulang .zip"
-                            className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                          </button>
-                        )}
-
-                        {/* Hapus */}
-                        <button onClick={() => setConfirmId(row.id)} title="Hapus"
-                          className="p-1.5 rounded-lg text-text-secondary hover:text-accent-orange hover:bg-accent-orange/8 dark:text-dark-text-secondary dark:hover:text-dark-accent-orange dark:hover:bg-dark-accent-orange/15 transition-all">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-                        </button>
-                      </div>
-                    </td>
+      <div className="card p-5 space-y-4">
+        <div className="overflow-x-auto rounded-xl border border-border-soft dark:border-dark-border-soft">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-navy/5 dark:bg-dark-navy/10">
+                {['Petugas','Nomor Surat','Wilayah Tujuan','Tanggal','Durasi','Biaya','Survei','Progress','Status','Aksi'].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading || loadingDetail ? (
+                Array.from({length: 4}).map((_, i) => (
+                  <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft">
+                    {Array.from({length: 10}).map((_, j) => (
+                      <td key={j} className="px-4 py-3"><div className="h-3 rounded-full bg-status-neutral/15 animate-pulse" style={{width:`${40+j*5}%`}} /></td>
+                    ))}
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                ))
+              ) : list.length === 0 ? (
+                <tr><td colSpan={10} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">Belum ada laporan perjalanan dinas.</td></tr>
+              ) : (
+                (() => {
+                  const isAll = perPage === 'all';
+                  const effectivePerPage = isAll ? (list.length || 1) : Number(perPage);
+                  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(list.length / effectivePerPage));
+                  const safePage = Math.min(Math.max(1, page), totalPages);
+                  const startIndex = isAll ? 0 : (safePage - 1) * effectivePerPage;
+                  const endIndex = isAll ? list.length : Math.min(startIndex + effectivePerPage, list.length);
+                  const paginatedList = isAll ? list : list.slice(startIndex, endIndex);
+
+                  return paginatedList.map(row => {
+                    const durasi = diffDays(row.tanggal_berangkat, row.tanggal_kembali);
+                    return (
+                      <tr key={row.id} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="font-medium text-text-primary dark:text-dark-text-primary">{row.nama_petugas}</p>
+                          <p className="text-xs text-text-secondary dark:text-dark-text-secondary capitalize">{row.jabatan || row.tipe_petugas}</p>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary max-w-24 truncate">{row.nomor_surat || '—'}</td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm text-text-primary dark:text-dark-text-primary">{row.desa_kelurahan}</p>
+                          <p className="text-xs text-text-secondary dark:text-dark-text-secondary">{row.kecamatan}</p>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
+                          {row.tanggal_berangkat}<br />{row.tanggal_kembali}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-center font-semibold text-text-primary dark:text-dark-text-primary">
+                          {durasi !== null ? `${durasi} hr` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-mono whitespace-nowrap text-text-primary dark:text-dark-text-primary">
+                          {formatRupiah(row.biaya_transport)}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary max-w-28 truncate">
+                          {row.nama_survei || '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+                              {row.jumlah_rundown ?? 0} kegiatan
+                            </span>
+                            <span className="text-text-secondary/30 dark:text-dark-text-secondary/30">·</span>
+                            <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+                              {row.jumlah_foto ?? 0} foto
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium ${STATUS_BADGE[row.status_pengisian] || ''}`}>
+                            {row.status_pengisian}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            {/* Lanjutkan / Edit wizard */}
+                            <button onClick={() => resumeWizard(row)} title={row.status_pengisian === 'draft' ? 'Lanjutkan wizard' : 'Buka wizard'}
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all">
+                              {row.status_pengisian === 'draft' ? (
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487 18.549 2.8a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                              )}
+                            </button>
+
+                            {/* Download ulang (jika selesai) */}
+                            {row.status_pengisian === 'selesai' && (
+                              <button onClick={() => redownload(row)} title="Download ulang .zip"
+                                className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                              </button>
+                            )}
+
+                            {/* Hapus */}
+                            <button onClick={() => setConfirmId(row.id)} title="Hapus"
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-accent-orange hover:bg-accent-orange/8 dark:text-dark-text-secondary dark:hover:text-dark-accent-orange dark:hover:bg-dark-accent-orange/15 transition-all">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {!loading && !loadingDetail && (
+          <Pagination
+            totalItems={list.length}
+            page={page}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={(p) => { setPerPage(p); setPage(1); }}
+            label="laporan"
+          />
+        )}
       </div>
 
       {/* Toast */}

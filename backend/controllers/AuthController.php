@@ -10,13 +10,37 @@ class AuthController
         $body     = requestBody();
         $username = clean($body['username'] ?? '');
         $password = $body['password'] ?? '';
+        $ip       = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
         if ($username === '' || $password === '') {
             respond(false, null, 'Username dan password wajib diisi.', 422);
         }
 
         try {
-            $pdo  = Database::connect();
+            $pdo = Database::connect();
+
+            // Pastikan tabel login_attempts tersedia
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS login_attempts (
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    ip_address VARCHAR(45) NOT NULL,
+                    username VARCHAR(100) NOT NULL,
+                    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_ip_time (ip_address, attempted_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ");
+
+            // Cek batas percobaan gagal: max 5 kali dalam 15 menit
+            $stmtL = $pdo->prepare(
+                'SELECT COUNT(*) FROM login_attempts WHERE ip_address = ? AND attempted_at > NOW() - INTERVAL 15 MINUTE'
+            );
+            $stmtL->execute([$ip]);
+            $failedCount = (int)$stmtL->fetchColumn();
+
+            if ($failedCount >= 5) {
+                respond(false, null, 'Terlalu banyak percobaan login gagal. Silakan coba lagi setelah 15 menit.', 429);
+            }
+
             $stmt = $pdo->prepare(
                 'SELECT id, nama, username, password_hash, role FROM users WHERE username = ? LIMIT 1'
             );
@@ -27,8 +51,19 @@ class AuthController
         }
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
+            // Catat percobaan gagal
+            try {
+                $stmtFail = $pdo->prepare('INSERT INTO login_attempts (ip_address, username) VALUES (?, ?)');
+                $stmtFail->execute([$ip, $username]);
+            } catch (Throwable) {}
+
             respond(false, null, 'Username atau password salah.', 401);
         }
+
+        // Login berhasil: bersihkan riwayat percobaan gagal untuk IP ini
+        try {
+            $pdo->prepare('DELETE FROM login_attempts WHERE ip_address = ?')->execute([$ip]);
+        } catch (Throwable) {}
 
         // Regenerate session ID → cegah session fixation
         session_regenerate_id(true);

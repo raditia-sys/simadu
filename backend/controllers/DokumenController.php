@@ -118,12 +118,18 @@ class DokumenController
             respond(false, null, 'Tipe file tidak diizinkan: ' . $mimeReal, 415);
         }
 
+        // Whitelist ekstensi file ketat
+        $allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'txt', 'csv', 'zip'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowedExtensions, true)) {
+            respond(false, null, 'Ekstensi file tidak diizinkan.', 415);
+        }
+
         $year  = date('Y');
         $month = date('m');
         $dir   = self::uploadDir($year, $month);
 
         // Nama unik — hindari path traversal
-        $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $safeName = uniqid('dok_', true) . '.' . $ext;
         $destPath = $dir . $safeName;
 

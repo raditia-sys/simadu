@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../lib/api';
 import RadialProgress from '../components/ui/RadialProgress';
+import Pagination from '../components/ui/Pagination';
 
 // Nama-nama anggota Subbagian Umum sesuai instruksi
 const SUBBAG_ANGGOTA_NAMES = [
@@ -28,55 +29,75 @@ function PersonCard({ person }) {
   return (
     <div className="card p-4 flex flex-col justify-between hover:shadow-soft-lg transition-all border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface rounded-2xl group">
       <div>
-        <div className="flex items-start gap-3">
-          {/* Avatar inisial */}
-          <div
-            className={`w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 shadow-sm transition-transform group-hover:scale-105 ${
-              isPegawai
-                ? 'bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy'
-                : 'bg-accent-orange/10 text-accent-orange dark:bg-dark-accent-orange/20 dark:text-dark-accent-orange'
-            }`}
-          >
-            {(person.nama || '?').slice(0, 2).toUpperCase()}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-1.5">
-              <p className="text-sm font-bold text-text-primary dark:text-dark-text-primary leading-snug truncate" title={person.nama}>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shadow-xs ${
+                isPegawai
+                  ? 'bg-gradient-to-br from-navy to-navy-light text-white dark:from-dark-navy dark:to-navy'
+                  : 'bg-gradient-to-br from-accent-orange to-amber-500 text-white dark:from-dark-accent-orange dark:to-amber-600'
+              }`}
+            >
+              {person.nama?.slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <h3 className="font-heading font-bold text-sm text-text-primary dark:text-dark-text-primary group-hover:text-navy dark:group-hover:text-dark-navy transition-colors line-clamp-1">
                 {person.nama}
+              </h3>
+              <p className="text-xs text-text-secondary dark:text-dark-text-secondary font-mono">
+                {person.nip_atau_kode_mitra || '—'}
               </p>
             </div>
-            {person.jabatan && (
-              <p className="text-xs font-medium text-navy dark:text-dark-navy mt-0.5 truncate" title={person.jabatan}>
-                {person.jabatan}
-              </p>
-            )}
-            {person.nip_atau_kode_mitra && (
-              <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary font-mono mt-0.5">
-                {person.nip_atau_kode_mitra}
-              </p>
-            )}
           </div>
+
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize flex-shrink-0 ${
+              isPegawai
+                ? 'bg-navy/8 text-navy dark:bg-dark-navy/20 dark:text-dark-navy'
+                : 'bg-accent-orange/8 text-accent-orange dark:bg-dark-accent-orange/20 dark:text-dark-accent-orange'
+            }`}
+          >
+            {person.tipe}
+          </span>
         </div>
 
+        {person.jabatan && (
+          <div className="mb-3 px-2.5 py-1 rounded-lg bg-navy/3 dark:bg-dark-navy/6 border border-border-soft dark:border-dark-border-soft">
+            <p className="text-xs text-text-secondary dark:text-dark-text-secondary line-clamp-1">
+              💼 <span className="text-text-primary dark:text-dark-text-primary font-medium">{person.jabatan}</span>
+            </p>
+          </div>
+        )}
+
         {person.kontak && (
-          <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-2.5 flex items-center gap-1.5 truncate">
-            <svg className="w-3.5 h-3.5 flex-shrink-0 text-text-secondary/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <p className="text-xs text-text-secondary dark:text-dark-text-secondary mb-3 flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 text-text-secondary/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
             </svg>
-            <span className="truncate">{person.kontak}</span>
+            <span className="font-mono text-xs">{person.kontak}</span>
           </p>
         )}
       </div>
 
-      {/* Stats mini */}
-      <div className="flex items-center justify-between gap-3 mt-3 pt-2.5 border-t border-border-soft dark:border-dark-border-soft">
-        <div className="flex items-center gap-1.5">
-          <RadialProgress value={persen} size={30} strokeWidth={3} />
-          <span className="text-xs font-mono font-semibold text-text-primary dark:text-dark-text-primary">{persen}%</span>
+      {/* Footer Statistik Beban Kerja */}
+      <div className="pt-3 border-t border-border-soft dark:border-dark-border-soft flex items-center justify-between gap-2">
+        <div className="space-y-0.5">
+          <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
+            Beban Tugas: <span className="font-bold text-text-primary dark:text-dark-text-primary">{person.total_tugas ?? 0}</span>
+          </p>
+          <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
+            Selesai: <span className="font-bold text-navy dark:text-dark-navy">{person.tugas_selesai ?? 0}</span>
+          </p>
         </div>
-        <div className="text-right text-[11px] text-text-secondary dark:text-dark-text-secondary">
-          <span className="font-bold text-text-primary dark:text-dark-text-primary">{person.tugas_selesai || 0}</span>/{person.total_tugas || 0} tugas
+
+        <div className="flex items-center gap-1.5">
+          <div className="text-right">
+            <span className="text-xs font-bold text-text-primary dark:text-dark-text-primary">
+              {persen.toFixed(0)}%
+            </span>
+            <p className="text-[10px] text-text-secondary dark:text-dark-text-secondary">Progres</p>
+          </div>
+          <RadialProgress value={persen} size={38} strokeWidth={4} />
         </div>
       </div>
     </div>
@@ -87,21 +108,24 @@ export default function TimPage() {
   const [data, setData] = useState({ pegawai: [], mitra: [] });
   const [loading, setLoading] = useState(true);
 
-  // Accordion toggle states
-  const [showMaps, setShowMaps] = useState(true);
+  // Accordion bar collapse states
+  const [showMaps, setShowMaps] = useState(false);
   const [showPegawaiSection, setShowPegawaiSection] = useState(true);
   const [showMitraSection, setShowMitraSection] = useState(true);
 
-  // Detail view toggles
+  // Expand full directory list within bar
   const [expandPegawaiList, setExpandPegawaiList] = useState(false);
   const [expandMitraList, setExpandMitraList] = useState(false);
 
-  // Filter & Search
+  // Filters & Search
   const [qPegawai, setQPegawai] = useState('');
   const [filterPegawaiKategori, setFilterPegawaiKategori] = useState('semua');
+  const [pegawaiPage, setPegawaiPage] = useState(1);
+  const [pegawaiPerPage, setPegawaiPerPage] = useState(10);
+
   const [qMitra, setQMitra] = useState('');
   const [mitraPage, setMitraPage] = useState(1);
-  const MITRA_PER_PAGE = 18;
+  const [mitraPerPage, setMitraPerPage] = useState(10);
 
   const load = async () => {
     setLoading(true);
@@ -163,6 +187,18 @@ export default function TimPage() {
     });
   }, [data.pegawai, qPegawai, filterPegawaiKategori]);
 
+  const paginatedPegawai = useMemo(() => {
+    if (pegawaiPerPage === 'all') return filteredPegawai;
+    const limit = Number(pegawaiPerPage);
+    const start = (pegawaiPage - 1) * limit;
+    return filteredPegawai.slice(start, start + limit);
+  }, [filteredPegawai, pegawaiPage, pegawaiPerPage]);
+
+  // Reset page saat filter/search pegawai berubah
+  useEffect(() => {
+    setPegawaiPage(1);
+  }, [qPegawai, filterPegawaiKategori, pegawaiPerPage]);
+
   // Filtered mitra list with pagination
   const filteredMitra = useMemo(() => {
     return (data.mitra || []).filter((m) => {
@@ -175,16 +211,17 @@ export default function TimPage() {
     });
   }, [data.mitra, qMitra]);
 
-  const totalMitraPages = Math.ceil(filteredMitra.length / MITRA_PER_PAGE) || 1;
   const paginatedMitra = useMemo(() => {
-    const start = (mitraPage - 1) * MITRA_PER_PAGE;
-    return filteredMitra.slice(start, start + MITRA_PER_PAGE);
-  }, [filteredMitra, mitraPage]);
+    if (mitraPerPage === 'all') return filteredMitra;
+    const limit = Number(mitraPerPage);
+    const start = (mitraPage - 1) * limit;
+    return filteredMitra.slice(start, start + limit);
+  }, [filteredMitra, mitraPage, mitraPerPage]);
 
   // Reset page saat search mitra berubah
   useEffect(() => {
     setMitraPage(1);
-  }, [qMitra]);
+  }, [qMitra, mitraPerPage]);
 
   return (
     <div className="space-y-6 pb-12">
@@ -549,17 +586,28 @@ export default function TimPage() {
 
               {/* Grid Kartu Pegawai (Jika Dibuka) */}
               {expandPegawaiList && (
-                <div>
+                <div className="space-y-4">
                   {filteredPegawai.length === 0 ? (
                     <div className="card py-8 text-center text-xs text-text-secondary dark:text-dark-text-secondary">
                       Tidak ada pegawai yang cocok dengan kriteria pencarian.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                      {filteredPegawai.map((p) => (
-                        <PersonCard key={p.id} person={p} />
-                      ))}
-                    </div>
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                        {paginatedPegawai.map((p) => (
+                          <PersonCard key={p.id} person={p} />
+                        ))}
+                      </div>
+
+                      <Pagination
+                        totalItems={filteredPegawai.length}
+                        page={pegawaiPage}
+                        perPage={pegawaiPerPage}
+                        onPageChange={setPegawaiPage}
+                        onPerPageChange={setPegawaiPerPage}
+                        label="pegawai"
+                      />
+                    </>
                   )}
                 </div>
               )}
@@ -653,7 +701,7 @@ export default function TimPage() {
                   </div>
 
                   <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
-                    Menampilkan <span className="font-semibold text-text-primary dark:text-dark-text-primary">{filteredMitra.length}</span> mitra
+                    Total Ditemukan <span className="font-semibold text-text-primary dark:text-dark-text-primary">{filteredMitra.length}</span> mitra
                   </span>
                 </div>
 
@@ -671,29 +719,14 @@ export default function TimPage() {
                 )}
 
                 {/* Pagination Controls */}
-                {totalMitraPages > 1 && (
-                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-border-soft dark:border-dark-border-soft">
-                    <button
-                      onClick={() => setMitraPage((p) => Math.max(1, p - 1))}
-                      disabled={mitraPage === 1}
-                      className="btn-secondary text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
-                    >
-                      ← Sebelumnya
-                    </button>
-
-                    <span className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary">
-                      Halaman <span className="font-semibold text-text-primary dark:text-dark-text-primary">{mitraPage}</span> dari {totalMitraPages}
-                    </span>
-
-                    <button
-                      onClick={() => setMitraPage((p) => Math.min(totalMitraPages, p + 1))}
-                      disabled={mitraPage === totalMitraPages}
-                      className="btn-secondary text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
-                    >
-                      Selanjutnya →
-                    </button>
-                  </div>
-                )}
+                <Pagination
+                  totalItems={filteredMitra.length}
+                  page={mitraPage}
+                  perPage={mitraPerPage}
+                  onPageChange={setMitraPage}
+                  onPerPageChange={setMitraPerPage}
+                  label="mitra"
+                />
               </div>
             )}
           </div>

@@ -165,6 +165,7 @@ class DashboardController
         requireAuth();
         $pdo  = Database::connect();
         $hari = max(1, min(60, (int)(query('hari') ?? 7)));
+        $targetDate = date('Y-m-d', strtotime("+{$hari} days"));
 
         // Ambil tugas yang deadline-nya dalam N hari ke depan & belum selesai
         $stmt = $pdo->prepare("
@@ -180,12 +181,12 @@ class DashboardController
             JOIN master_survei   ms ON ms.id = t.survei_id
             JOIN master_wilayah  mw ON mw.id = t.wilayah_id
             JOIN petugas          p  ON p.id  = t.petugas_id
-            WHERE t.deadline BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL {$hari} DAY)
+            WHERE t.deadline BETWEEN CURDATE() AND ?
               AND (t.sampel_selesai < t.target_sampel OR t.target_sampel = 0)
             ORDER BY t.deadline ASC
             LIMIT 50
         ");
-        $stmt->execute();
+        $stmt->execute([$targetDate]);
         respond(true, $stmt->fetchAll());
     }
 
