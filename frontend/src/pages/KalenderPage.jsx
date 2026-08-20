@@ -8,22 +8,26 @@ const HARI  = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 
 // Warna event per tipe/warna
 const WARNA_CLASS = {
-  danger:  'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800/40',
-  orange:  'bg-accent-orange/15 text-accent-orange border-accent-orange/30 dark:bg-dark-accent-orange/15 dark:text-dark-accent-orange dark:border-dark-accent-orange/30',
-  warning: 'bg-yellow-50 text-yellow-600 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-700/40',
-  navy:    'bg-navy/10 text-navy border-navy/20 dark:bg-dark-navy/15 dark:text-dark-navy dark:border-dark-navy/30',
+  danger:     'bg-red-100 text-red-700 border-red-300 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800/60 font-semibold',
+  orange:     'bg-accent-orange/15 text-accent-orange border-accent-orange/30 dark:bg-dark-accent-orange/15 dark:text-dark-accent-orange dark:border-dark-accent-orange/30',
+  warning:    'bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-700/50',
+  navy:       'bg-navy/10 text-navy border-navy/20 dark:bg-dark-navy/15 dark:text-dark-navy dark:border-dark-navy/30',
+  peringatan: 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800/60 font-medium',
 };
 
 const TIPE_CLASS = {
-  deadline: WARNA_CLASS.orange,
-  reminder: WARNA_CLASS.warning,
-  umum:     WARNA_CLASS.navy,
-  rapat:    'bg-status-neutral/15 text-status-neutral border-status-neutral/30 dark:bg-dark-status-neutral/15 dark:text-dark-status-neutral dark:border-dark-status-neutral/30',
-  pelatihan:'bg-navy/8 text-navy/70 border-navy/15 dark:bg-dark-navy/10 dark:text-dark-navy/80 dark:border-dark-navy/20',
+  deadline:   WARNA_CLASS.orange,
+  reminder:   WARNA_CLASS.warning,
+  libur:      WARNA_CLASS.danger,
+  peringatan: WARNA_CLASS.peringatan,
+  umum:       WARNA_CLASS.navy,
+  rapat:      'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50',
+  pelatihan:  'bg-navy/8 text-navy/70 border-navy/15 dark:bg-dark-navy/10 dark:text-dark-navy/80 dark:border-dark-navy/20',
 };
 
 function getTipeClass(evt) {
-  // Gunakan warna eksplisit jika ada (dari deadline reminders backend)
+  if (evt.tipe === 'libur') return TIPE_CLASS.libur;
+  if (evt.tipe === 'peringatan') return TIPE_CLASS.peringatan;
   if (evt.warna && WARNA_CLASS[evt.warna]) return WARNA_CLASS[evt.warna];
   return TIPE_CLASS[evt.tipe] || TIPE_CLASS.umum;
 }
@@ -72,6 +76,8 @@ function EventForm({ initialDate, onClose, onSaved }) {
         <FormField label="Tipe">
           <Select value={form.tipe} onChange={e => setForm(f => ({...f, tipe: e.target.value}))}>
             <option value="umum">Umum</option>
+            <option value="libur">Hari Libur / Tanggal Merah</option>
+            <option value="peringatan">Peringatan Hari Besar</option>
             <option value="rapat">Rapat</option>
             <option value="pelatihan">Pelatihan</option>
           </Select>
@@ -108,7 +114,7 @@ export default function KalenderPage() {
 
   useEffect(() => { load(); }, [cur]);
 
-  // Buat map tanggal → events
+  // Buat map tanggal → events (mendukung rentang multi-hari)
   const allItems = [
     ...data.deadlines.map(d => ({ ...d, _source: 'deadline' })),
     ...data.events.map(e   => ({ ...e, _source: 'event' })),
@@ -116,8 +122,24 @@ export default function KalenderPage() {
 
   const byDate = {};
   allItems.forEach(item => {
-    const d = item.tanggal?.slice(0, 10);
-    if (d) { byDate[d] = byDate[d] || []; byDate[d].push(item); }
+    const startStr = item.tanggal?.slice(0, 10);
+    const endStr   = item.tanggal_selesai?.slice(0, 10);
+
+    if (startStr) {
+      if (endStr && endStr > startStr) {
+        // Expand tanggal multi-hari
+        const start = new Date(startStr);
+        const end   = new Date(endStr);
+        for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+          const dKey = dt.toISOString().slice(0, 10);
+          byDate[dKey] = byDate[dKey] || [];
+          byDate[dKey].push(item);
+        }
+      } else {
+        byDate[startStr] = byDate[startStr] || [];
+        byDate[startStr].push(item);
+      }
+    }
   });
 
   // Grid kalender
@@ -184,11 +206,13 @@ export default function KalenderPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         {[
-          { label: 'Deadline Survei', cls: 'bg-accent-orange/20 border-accent-orange/40' },
-          { label: 'Umum',            cls: 'bg-navy/10 border-navy/25' },
-          { label: 'Rapat',           cls: 'bg-status-neutral/15 border-status-neutral/35' },
+          { label: 'Hari Libur / Tanggal Merah', cls: 'bg-red-100 border-red-300' },
+          { label: 'Peringatan Hari Besar',     cls: 'bg-purple-100 border-purple-300' },
+          { label: 'Deadline Survei',           cls: 'bg-accent-orange/20 border-accent-orange/40' },
+          { label: 'Umum',                      cls: 'bg-navy/10 border-navy/25' },
+          { label: 'Rapat',                     cls: 'bg-emerald-100 border-emerald-300' },
         ].map(({ label, cls }) => (
           <div key={label} className="flex items-center gap-1.5">
             <span className={`w-3 h-2 rounded-sm border ${cls}`} />
@@ -202,8 +226,8 @@ export default function KalenderPage() {
         <div className="card overflow-hidden">
           {/* Hari header */}
           <div className="grid grid-cols-7 border-b border-border-soft dark:border-dark-border-soft">
-            {HARI.map(h => (
-              <div key={h} className="py-3 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+            {HARI.map((h, i) => (
+              <div key={h} className={`py-3 text-center text-xs font-semibold uppercase tracking-wide ${i === 0 ? 'text-red-500 dark:text-red-400' : 'text-text-secondary dark:text-dark-text-secondary'}`}>
                 {h}
               </div>
             ))}
@@ -217,19 +241,25 @@ export default function KalenderPage() {
               const dateStr = `${cur.year}-${String(cur.month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
               const isToday = dateStr === todayStr;
               const dayItems = byDate[dateStr] || [];
+              const isSunday = (i % 7 === 0);
+              const isHoliday = dayItems.some(it => it.tipe === 'libur');
 
               return (
                 <div key={dateStr}
                   onClick={() => { setClickedDate(dateStr); setShowForm(true); }}
-                  className={`border-r border-b border-border-soft dark:border-dark-border-soft min-h-24 p-1.5 cursor-pointer hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors ${i % 7 === 0 ? 'border-l-0' : ''}`}>
+                  className={`border-r border-b border-border-soft dark:border-dark-border-soft min-h-24 p-1.5 cursor-pointer hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors ${i % 7 === 0 ? 'border-l-0' : ''} ${isHoliday ? 'bg-red-50/30 dark:bg-red-950/10' : ''}`}>
                   <div className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-1
-                    ${isToday ? 'bg-navy text-white dark:bg-dark-navy' : 'text-text-primary dark:text-dark-text-primary'}`}>
+                    ${isToday
+                      ? 'bg-navy text-white dark:bg-dark-navy'
+                      : isHoliday || isSunday
+                        ? 'text-red-600 dark:text-red-400 font-bold'
+                        : 'text-text-primary dark:text-dark-text-primary'}`}>
                     {day}
                   </div>
                   <div className="space-y-0.5">
                     {dayItems.slice(0, 3).map((item, j) => (
-                      <div key={j} className={`text-xs px-1.5 py-0.5 rounded border truncate ${getTipeClass(item)}`}>
-                        {item.judul}
+                      <div key={j} className={`text-xs px-1.5 py-0.5 rounded border truncate ${getTipeClass(item)}`} title={item.judul}>
+                        {item.tipe === 'libur' ? '🔴 ' : item.tipe === 'peringatan' ? '🟣 ' : ''}{item.judul}
                       </div>
                     ))}
                     {dayItems.length > 3 && (
@@ -262,7 +292,7 @@ export default function KalenderPage() {
               <div key={i} className="px-5 py-3 flex items-start justify-between gap-3 hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 px-2 py-0.5 rounded-full text-xs border ${getTipeClass(item)} flex-shrink-0`}>
-                    {item.tipe === 'deadline' ? '⏰' : item.tipe === 'reminder' ? '🔔' : '●'}
+                    {item.tipe === 'deadline' ? '⏰' : item.tipe === 'reminder' ? '🔔' : item.tipe === 'libur' ? '🔴' : item.tipe === 'peringatan' ? '🟣' : item.tipe === 'rapat' ? '👥' : '●'}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-text-primary dark:text-dark-text-primary">{item.judul}</p>

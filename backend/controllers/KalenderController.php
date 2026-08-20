@@ -129,6 +129,22 @@ class KalenderController
         }
 
         // ── 2. Event manual dari agenda_event ──────────────────────────────
+        $whereEvent = "WHERE (YEAR(e.tanggal) = ? OR (e.tanggal_selesai IS NOT NULL AND YEAR(e.tanggal_selesai) = ?))";
+        $paramsEvent = [$tahun, $tahun];
+        if ($bulan) {
+            $firstDay = sprintf('%04d-%02d-01', $tahun, $bulan);
+            $lastDay  = date('Y-m-t', strtotime($firstDay));
+            $whereEvent .= " AND (
+                MONTH(e.tanggal) = ?
+                OR (e.tanggal_selesai IS NOT NULL AND MONTH(e.tanggal_selesai) = ?)
+                OR (e.tanggal <= ? AND e.tanggal_selesai >= ?)
+            )";
+            $paramsEvent[] = $bulan;
+            $paramsEvent[] = $bulan;
+            $paramsEvent[] = $lastDay;
+            $paramsEvent[] = $firstDay;
+        }
+
         $stmtE = $pdo->prepare("
             SELECT
                 CONCAT('event-', e.id) AS id,
@@ -136,11 +152,10 @@ class KalenderController
                 e.tipe, e.keterangan, e.warna,
                 NULL AS tugas_id
             FROM agenda_event e
-            WHERE YEAR(e.tanggal) = ?
-            " . ($bulan ? 'AND MONTH(e.tanggal) = ?' : '') . "
+            $whereEvent
             ORDER BY e.tanggal ASC
         ");
-        $stmtE->execute($bulan ? [$tahun, $bulan] : [$tahun]);
+        $stmtE->execute($paramsEvent);
         $events = $stmtE->fetchAll();
 
         respond(true, [
