@@ -5,27 +5,72 @@
 class MasterSurveiController
 {
     private static array $VALID_KATEGORI = ['Distribusi', 'Harga', 'KTIP', 'Sensus'];
-    private static array $VALID_PERIODE  = ['mingguan', 'bulanan', 'triwulanan', 'tahunan'];    public static function index(): void
+    private static array $VALID_PERIODE  = ['mingguan', 'bulanan', 'triwulanan', 'tahunan'];
+
+    private static function extractFields(array $body): array
+    {
+        $kode         = trim($body['kode_survei'] ?? '');
+        $tautanEntri  = clean($body['tautan_entri_data'] ?? '');
+        $materiDok    = clean($body['materi_dokumen'] ?? '');
+        $deadlineHari = isset($body['deadline_hari']) && $body['deadline_hari'] !== ''
+                        ? max(1, min(31, (int)$body['deadline_hari'])) : null;
+
+        // Bulan mulai/selesai (hanya untuk tahunan, nullable)
+        $bulanMulai   = isset($body['bulan_mulai'])   && $body['bulan_mulai']   !== '' ? max(1, min(12, (int)$body['bulan_mulai']))   : null;
+        $bulanSelesai = isset($body['bulan_selesai']) && $body['bulan_selesai'] !== '' ? max(1, min(12, (int)$body['bulan_selesai'])) : null;
+
+        // Tanggal koleksi Minggu 1 (semua jenis periode)
+        $tglMulai   = isset($body['tanggal_mulai_koleksi'])   && $body['tanggal_mulai_koleksi']   !== '' ? max(1, min(31, (int)$body['tanggal_mulai_koleksi']))   : null;
+        $tglSelesai = isset($body['tanggal_selesai_koleksi']) && $body['tanggal_selesai_koleksi'] !== '' ? max(1, min(31, (int)$body['tanggal_selesai_koleksi'])) : null;
+
+        // Tanggal koleksi Minggu 2 (khusus mingguan)
+        $tglMulaiMg2   = isset($body['tanggal_mulai_mg2'])   && $body['tanggal_mulai_mg2']   !== '' ? max(1, min(31, (int)$body['tanggal_mulai_mg2']))   : null;
+        $tglSelesaiMg2 = isset($body['tanggal_selesai_mg2']) && $body['tanggal_selesai_mg2'] !== '' ? max(1, min(31, (int)$body['tanggal_selesai_mg2'])) : null;
+
+        // Validasi bulan: jika salah satu diisi, keduanya harus diisi dan mulai ≤ selesai
+        if (($bulanMulai !== null) !== ($bulanSelesai !== null)) {
+            respond(false, null, 'Bulan mulai dan bulan selesai harus diisi bersama-sama.', 422);
+        }
+        if ($bulanMulai !== null && $bulanSelesai !== null && $bulanMulai > $bulanSelesai) {
+            respond(false, null, 'Bulan mulai tidak boleh lebih besar dari bulan selesai.', 422);
+        }
+
+        return [
+            'kode_survei'             => $kode ?: null,
+            'tautan_entri_data'       => $tautanEntri ?: null,
+            'materi_dokumen'          => $materiDok ?: null,
+            'deadline_hari'           => $deadlineHari,
+            'bulan_mulai'             => $bulanMulai,
+            'bulan_selesai'           => $bulanSelesai,
+            'tanggal_mulai_koleksi'   => $tglMulai,
+            'tanggal_selesai_koleksi' => $tglSelesai,
+            'tanggal_mulai_mg2'       => $tglMulaiMg2,
+            'tanggal_selesai_mg2'     => $tglSelesaiMg2,
+        ];
+    }
+
+    public static function index(): void
     {
         requireRole('superadmin');
         $pdo    = Database::connect();
         $search = query('q', '');
 
+        $cols = 'id, kode_survei, nama_survei, kategori, jenis_periode, deadline_hari,
+                 tautan_entri_data, materi_dokumen,
+                 bulan_mulai, bulan_selesai,
+                 tanggal_mulai_koleksi, tanggal_selesai_koleksi,
+                 tanggal_mulai_mg2, tanggal_selesai_mg2';
+
         if ($search !== '') {
             $like = '%' . $search . '%';
             $stmt = $pdo->prepare(
-                'SELECT id, nama_survei, kategori, jenis_periode, deadline_hari, tautan_entri_data, materi_dokumen
-                 FROM master_survei
-                 WHERE nama_survei LIKE ? OR kategori LIKE ?
-                 ORDER BY kategori, nama_survei'
+                "SELECT {$cols} FROM master_survei
+                 WHERE nama_survei LIKE ? OR kategori LIKE ? OR kode_survei LIKE ?
+                 ORDER BY kategori, nama_survei"
             );
-            $stmt->execute([$like, $like]);
+            $stmt->execute([$like, $like, $like]);
         } else {
-            $stmt = $pdo->query(
-                'SELECT id, nama_survei, kategori, jenis_periode, deadline_hari, tautan_entri_data, materi_dokumen
-                 FROM master_survei
-                 ORDER BY kategori, nama_survei'
-            );
+            $stmt = $pdo->query("SELECT {$cols} FROM master_survei ORDER BY kategori, nama_survei");
         }
         respond(true, $stmt->fetchAll());
     }
@@ -40,13 +85,9 @@ class MasterSurveiController
             'jenis_periode' => 'Jenis Periode',
         ]);
 
-        $namaSurvei    = clean($body['nama_survei']);
-        $kategori      = clean($body['kategori']);
-        $jenisPeriode  = clean($body['jenis_periode']);
-        $tautanEntri   = clean($body['tautan_entri_data'] ?? '');
-        $materiDokumen = clean($body['materi_dokumen'] ?? '');
-        $deadlineHari  = isset($body['deadline_hari']) && $body['deadline_hari'] !== ''
-                         ? max(1, min(31, (int)$body['deadline_hari'])) : null;
+        $namaSurvei   = clean($body['nama_survei']);
+        $kategori     = clean($body['kategori']);
+        $jenisPeriode = clean($body['jenis_periode']);
 
         if (!in_array($kategori, self::$VALID_KATEGORI, true)) {
             respond(false, null, 'Kategori tidak valid. Pilih: ' . implode(', ', self::$VALID_KATEGORI), 422);
@@ -55,14 +96,23 @@ class MasterSurveiController
             respond(false, null, 'Jenis periode tidak valid. Pilih: ' . implode(', ', self::$VALID_PERIODE), 422);
         }
 
-        $pdo  = Database::connect();
+        $f   = self::extractFields($body);
+        $pdo = Database::connect();
         $stmt = $pdo->prepare(
-            'INSERT INTO master_survei (nama_survei, kategori, jenis_periode, deadline_hari, tautan_entri_data, materi_dokumen)
-             VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO master_survei
+             (nama_survei, kode_survei, kategori, jenis_periode, deadline_hari,
+              tautan_entri_data, materi_dokumen,
+              bulan_mulai, bulan_selesai,
+              tanggal_mulai_koleksi, tanggal_selesai_koleksi,
+              tanggal_mulai_mg2, tanggal_selesai_mg2)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
-            $namaSurvei, $kategori, $jenisPeriode, $deadlineHari,
-            $tautanEntri ?: null, $materiDokumen ?: null,
+            $namaSurvei, $f['kode_survei'], $kategori, $jenisPeriode, $f['deadline_hari'],
+            $f['tautan_entri_data'], $f['materi_dokumen'],
+            $f['bulan_mulai'], $f['bulan_selesai'],
+            $f['tanggal_mulai_koleksi'], $f['tanggal_selesai_koleksi'],
+            $f['tanggal_mulai_mg2'], $f['tanggal_selesai_mg2'],
         ]);
         $id = (int) $pdo->lastInsertId();
 
@@ -85,8 +135,6 @@ class MasterSurveiController
 
         $kategori     = clean($body['kategori']);
         $jenisPeriode = clean($body['jenis_periode']);
-        $deadlineHari = isset($body['deadline_hari']) && $body['deadline_hari'] !== ''
-                        ? max(1, min(31, (int)$body['deadline_hari'])) : null;
 
         if (!in_array($kategori, self::$VALID_KATEGORI, true)) {
             respond(false, null, 'Kategori tidak valid.', 422);
@@ -102,16 +150,21 @@ class MasterSurveiController
             respond(false, null, 'Data survei tidak ditemukan.', 404);
         }
 
-        $stmt = $pdo->prepare(
+        $f = self::extractFields($body);
+        $pdo->prepare(
             'UPDATE master_survei
-             SET nama_survei = ?, kategori = ?, jenis_periode = ?, deadline_hari = ?,
-                 tautan_entri_data = ?, materi_dokumen = ?
+             SET nama_survei = ?, kode_survei = ?, kategori = ?, jenis_periode = ?, deadline_hari = ?,
+                 tautan_entri_data = ?, materi_dokumen = ?,
+                 bulan_mulai = ?, bulan_selesai = ?,
+                 tanggal_mulai_koleksi = ?, tanggal_selesai_koleksi = ?,
+                 tanggal_mulai_mg2 = ?, tanggal_selesai_mg2 = ?
              WHERE id = ?'
-        );
-        $stmt->execute([
-            clean($body['nama_survei']), $kategori, $jenisPeriode, $deadlineHari,
-            clean($body['tautan_entri_data'] ?? '') ?: null,
-            clean($body['materi_dokumen'] ?? '') ?: null,
+        )->execute([
+            clean($body['nama_survei']), $f['kode_survei'], $kategori, $jenisPeriode, $f['deadline_hari'],
+            $f['tautan_entri_data'], $f['materi_dokumen'],
+            $f['bulan_mulai'], $f['bulan_selesai'],
+            $f['tanggal_mulai_koleksi'], $f['tanggal_selesai_koleksi'],
+            $f['tanggal_mulai_mg2'], $f['tanggal_selesai_mg2'],
             $id,
         ]);
 

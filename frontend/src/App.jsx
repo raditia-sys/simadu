@@ -92,9 +92,10 @@ const router = createBrowserRouter([
       // ── Statistik Harga ─────────────────────────────────────────────
       { path: 'harga/hd',   element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdesaan"   kategori="Harga" /></ErrorBoundary> },
       { path: 'harga/hkd',  element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Konsumen Perdesaan"  kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shp',  element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Produsen"  kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shpb', element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdagangan Besar" kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shkk', element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Kemahalan Konstruksi" kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shp',           element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Produsen"                          kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shpb',          element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdagangan Besar (Bulanan)"     kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shpb-mingguan', element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdagangan Besar (Mingguan)"   kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shkk',          element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Kemahalan Konstruksi"            kategori="Harga" /></ErrorBoundary> },
 
       // ── KTIP ────────────────────────────────────────────────────────
       { path: 'ktip/bumd', element: <ErrorBoundary><SurveiPage surveiNama="Survei Keuangan Badan Usaha Milik Daerah"    kategori="KTIP" /></ErrorBoundary> },

@@ -148,7 +148,7 @@ export default function SurveiPage({ surveiNama, kategori }) {
           </div>
         ) : (
           <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="flex items-start gap-4">
+          <div className="flex items-start gap-4">
               {/* Radial progress overall */}
               <RadialProgress
                 value={parseFloat(survei._summary?.persen_overall) || 0}
@@ -157,14 +157,24 @@ export default function SurveiPage({ surveiNama, kategori }) {
               />
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
+                  {/* Kode survei badge */}
+                  {survei.kode_survei && (
+                    <span className="text-xs px-2 py-0.5 rounded-md font-mono font-semibold bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy">
+                      {survei.kode_survei}
+                    </span>
+                  )}
                   <h1 className="font-heading text-xl font-bold text-text-primary dark:text-dark-text-primary">
                     {survei.nama_survei}
                   </h1>
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${KATEGORI_BADGE[survei.kategori] ?? ''}`}>
                     {survei.kategori}
                   </span>
+                  {/* Periode badge — tampilkan rentang bulan jika tahunan */}
                   <span className="text-xs px-2 py-0.5 rounded-full bg-status-neutral/10 text-status-neutral dark:bg-dark-status-neutral/15 dark:text-dark-status-neutral">
-                    {PERIODE_LABEL[survei.jenis_periode] ?? survei.jenis_periode}
+                    {survei.jenis_periode === 'tahunan' && survei.bulan_mulai && survei.bulan_selesai
+                      ? `Tahunan (${BULAN_OPTS[survei.bulan_mulai]}–${BULAN_OPTS[survei.bulan_selesai]})`
+                      : (PERIODE_LABEL[survei.jenis_periode] ?? survei.jenis_periode)
+                    }
                   </span>
                 </div>
                 <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-0.5">
@@ -175,6 +185,20 @@ export default function SurveiPage({ surveiNama, kategori }) {
                     {survei._summary?.total_selesai ?? 0}/{survei._summary?.total_target ?? 0}
                   </span>{' '}sampel
                 </p>
+                {/* Rentang tanggal koleksi */}
+                {survei.jenis_periode === 'mingguan' && survei.tanggal_mulai_koleksi && survei.tanggal_selesai_koleksi ? (
+                  <p className="text-xs text-text-secondary/70 dark:text-dark-text-secondary/70 mt-1">
+                    📅 Mg1: tgl {survei.tanggal_mulai_koleksi}–{survei.tanggal_selesai_koleksi}
+                    {survei.tanggal_mulai_mg2 && survei.tanggal_selesai_mg2 && (
+                      <span> &nbsp;·&nbsp; Mg2: tgl {survei.tanggal_mulai_mg2}–{survei.tanggal_selesai_mg2}</span>
+                    )}
+                    {' '}setiap bulan
+                  </p>
+                ) : survei.tanggal_mulai_koleksi && survei.tanggal_selesai_koleksi ? (
+                  <p className="text-xs text-text-secondary/70 dark:text-dark-text-secondary/70 mt-1">
+                    📅 Pengumpulan data: tgl {survei.tanggal_mulai_koleksi}–{survei.tanggal_selesai_koleksi} setiap {PERIODE_LABEL[survei.jenis_periode]?.toLowerCase() ?? 'periode'}
+                  </p>
+                ) : null}
               </div>
             </div>
 

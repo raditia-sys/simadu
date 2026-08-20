@@ -256,9 +256,12 @@ export default function Sidebar({ collapsed = false, userRole = 'superadmin' }) 
               <NavItem to="/harga/hd"  label="HD"  indent={3} />
               <NavItem to="/harga/hkd" label="HKD" indent={3} />
             </NavFolder>
-            <NavItem to="/harga/shp"  label="SHP"  indent={2} />
-            <NavItem to="/harga/shpb" label="SHPB" indent={2} />
-            <NavItem to="/harga/shkk" label="SHKK" indent={2} />
+            <NavItem to="/harga/shp"           label="SHP"           indent={2} />
+            <NavFolder label="SHPB" indent={2} activePrefixes={['/harga/shpb', '/harga/shpb-mingguan']}>
+              <NavItem to="/harga/shpb"          label="SHPB Bulanan"  indent={3} />
+              <NavItem to="/harga/shpb-mingguan" label="SHPB Mingguan" indent={3} />
+            </NavFolder>
+            <NavItem to="/harga/shkk"          label="SHKK"          indent={2} />
           </NavGroup>
 
           {/* KTIP */}

@@ -96,17 +96,27 @@ CREATE TABLE petugas (
 -- yang menentukan field tugas mana yang wajib diisi.
 -- =============================================================================
 CREATE TABLE master_survei (
-    id                  INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-    nama_survei         VARCHAR(150)    NOT NULL,
-    kategori            ENUM('Distribusi','Harga','KTIP','Sensus') NOT NULL,
-    jenis_periode       ENUM('mingguan','bulanan','triwulanan','tahunan') NOT NULL
-                        COMMENT 'Menentukan field periode wajib di tugas_kegiatan',
-    tautan_entri_data   VARCHAR(500)    NULL
-                        COMMENT 'URL eksternal ke sistem entri data (dibuka di tab baru)',
-    materi_dokumen      TEXT            NULL
-                        COMMENT 'Deskripsi / link materi & dokumen survei',
-    created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    id                       INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+    nama_survei              VARCHAR(150)    NOT NULL,
+    kode_survei              VARCHAR(20)     NULL
+                             COMMENT 'Kode/singkatan survei (misal: SAPB, HD, SHPB)',
+    kategori                 ENUM('Distribusi','Harga','KTIP','Sensus') NOT NULL,
+    jenis_periode            ENUM('mingguan','bulanan','triwulanan','tahunan') NOT NULL
+                             COMMENT 'Menentukan field periode wajib di tugas_kegiatan',
+    tautan_entri_data        VARCHAR(500)    NULL
+                             COMMENT 'URL eksternal ke sistem entri data (dibuka di tab baru)',
+    materi_dokumen           TEXT            NULL
+                             COMMENT 'Deskripsi / link materi & dokumen survei',
+    bulan_mulai              TINYINT UNSIGNED NULL CHECK (bulan_mulai BETWEEN 1 AND 12)
+                             COMMENT 'Bulan mulai pelaksanaan (khusus jenis_periode=tahunan)',
+    bulan_selesai            TINYINT UNSIGNED NULL CHECK (bulan_selesai BETWEEN 1 AND 12)
+                             COMMENT 'Bulan selesai pelaksanaan (khusus jenis_periode=tahunan)',
+    tanggal_mulai_koleksi    TINYINT UNSIGNED NULL CHECK (tanggal_mulai_koleksi BETWEEN 1 AND 31)
+                             COMMENT 'Tanggal mulai pengumpulan data dalam satu periode',
+    tanggal_selesai_koleksi  TINYINT UNSIGNED NULL CHECK (tanggal_selesai_koleksi BETWEEN 1 AND 31)
+                             COMMENT 'Tanggal selesai pengumpulan data dalam satu periode',
+    created_at               TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at               TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
     KEY idx_survei_kategori (kategori)
