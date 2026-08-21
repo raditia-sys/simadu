@@ -476,6 +476,7 @@ export default function Sidebar({ collapsed = false, userRole = 'superadmin' }) 
                 <PopupLink to="/master/mitra" label="Master Mitra" onSelect={() => setActivePopup(null)} />
                 <PopupLink to="/master/survei" label="Master Survei" onSelect={() => setActivePopup(null)} />
                 <PopupLink to="/master/kegiatan" label="Master Kegiatan" onSelect={() => setActivePopup(null)} />
+                <PopupLink to="/master/users" label="Akun Admin" onSelect={() => setActivePopup(null)} />
               </CollapsedNavPopup>
             </>
           )}
@@ -565,6 +566,7 @@ export default function Sidebar({ collapsed = false, userRole = 'superadmin' }) 
                 <NavItem to="/master/mitra"    label="Master Mitra"    indent={1} />
                 <NavItem to="/master/survei"   label="Master Survei"   indent={1} />
                 <NavItem to="/master/kegiatan" label="Master Kegiatan" indent={1} />
+                <NavItem to="/master/users"    label="Akun Admin"      indent={1} />
               </NavGroup>
             </>
           )}

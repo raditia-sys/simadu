@@ -14,6 +14,7 @@ import TugasKegiatanPage from './pages/TugasKegiatanPage';
 import MasterWilayahPage  from './pages/master/MasterWilayahPage';
 import MasterSurveiPage   from './pages/master/MasterSurveiPage';
 import MasterKegiatanPage from './pages/master/MasterKegiatanPage';
+import MasterUsersPage    from './pages/master/MasterUsersPage';
 import { MasterPegawaiPage, MasterMitraPage } from './pages/master/MasterPetugasPage';
 import SurveiPage           from './pages/SurveiPage';
 import ManajemenDokumenPage from './pages/ManajemenDokumenPage';
@@ -85,24 +86,28 @@ const router = createBrowserRouter([
         path: 'master/kegiatan',
         element: <ProtectedRoute role="superadmin"><ErrorBoundary><MasterKegiatanPage /></ErrorBoundary></ProtectedRoute>,
       },
+      {
+        path: 'master/users',
+        element: <ProtectedRoute role="superadmin"><ErrorBoundary><MasterUsersPage /></ErrorBoundary></ProtectedRoute>,
+      },
 
       // ── Statistik Distribusi ──────────────────────────────────────
-      { path: 'statistik/sapb', element: <ErrorBoundary><SurveiPage surveiNama="Survei Angkutan Penumpang dan Barang" kategori="Distribusi" /></ErrorBoundary> },
+      { path: 'statistik/sapb', element: <ErrorBoundary><SurveiPage surveiNama="Survei Angkutan Penumpang dan Barang" kodeSurvei="SAPB" kategori="Distribusi" /></ErrorBoundary> },
 
       // ── Statistik Harga ─────────────────────────────────────────────
-      { path: 'harga/hd',   element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdesaan"   kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/hkd',  element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Konsumen Perdesaan"  kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shp',           element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Produsen"                          kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shpb',          element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdagangan Besar (Bulanan)"     kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shpb-mingguan', element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdagangan Besar (Mingguan)"   kategori="Harga" /></ErrorBoundary> },
-      { path: 'harga/shkk',          element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Kemahalan Konstruksi"            kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/hd',            element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdesaan"   kodeSurvei="HD" kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/hkd',           element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Konsumen Perdesaan"  kodeSurvei="HKD" kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shp',           element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Produsen"  kodeSurvei="SHP" kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shpb',          element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdagangan Besar (Bulanan)" kodeSurvei="SHPB" kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shpb-mingguan', element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Perdagangan Besar (Mingguan)" kodeSurvei="SHPB" kategori="Harga" /></ErrorBoundary> },
+      { path: 'harga/shkk',          element: <ErrorBoundary><SurveiPage surveiNama="Survei Harga Kemahalan Konstruksi" kodeSurvei="SHKK" kategori="Harga" /></ErrorBoundary> },
 
       // ── KTIP ────────────────────────────────────────────────────────
-      { path: 'ktip/bumd', element: <ErrorBoundary><SurveiPage surveiNama="Survei Keuangan Badan Usaha Milik Daerah"    kategori="KTIP" /></ErrorBoundary> },
-      { path: 'ktip/slk',  element: <ErrorBoundary><SurveiPage surveiNama="Survei Lembaga Keuangan - Koperasi Simpan Pinjam" kategori="KTIP" /></ErrorBoundary> },
-      { path: 'ktip/k3',   element: <ErrorBoundary><SurveiPage surveiNama="Survei Keuangan Konstruksi"      kategori="KTIP" /></ErrorBoundary> },
-      { path: 'ktip/vhtl', element: <ErrorBoundary><SurveiPage surveiNama="Survei Hotel dan Jasa Akomodasi Lainnya Tahunan"    kategori="KTIP" /></ErrorBoundary> },
-      { path: 'ktip/vhts', element: <ErrorBoundary><SurveiPage surveiNama="Survei Tingkat Penghunian Kamar Hotel"    kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/bumd', element: <ErrorBoundary><SurveiPage surveiNama="Survei Keuangan Badan Usaha Milik Daerah" kodeSurvei="BUMD"    kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/slk',  element: <ErrorBoundary><SurveiPage surveiNama="Survei Lembaga Keuangan - Koperasi Simpan Pinjam" kodeSurvei="SLK-KSP" kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/k3',   element: <ErrorBoundary><SurveiPage surveiNama="Survei Statistik Keuangan Pemerintah Desa" kodeSurvei="K3"      kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/vhtl', element: <ErrorBoundary><SurveiPage surveiNama="Survei Hotel dan Jasa Akomodasi Lainnya Tahunan" kodeSurvei="VHTL"    kategori="KTIP" /></ErrorBoundary> },
+      { path: 'ktip/vhts', element: <ErrorBoundary><SurveiPage surveiNama="Survei Tingkat Penghunian Kamar Hotel" kodeSurvei="VHTS"    kategori="KTIP" /></ErrorBoundary> },
 
       // ── Sensus Ekonomi 2026 ────────────────────────────────────────────
       { path: 'se2026/persiapan',   element: <ErrorBoundary><SurveiPage surveiNama="Persiapan Sensus Ekonomi"              kategori="Sensus" /></ErrorBoundary> },

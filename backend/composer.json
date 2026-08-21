@@ -3,7 +3,9 @@
     "description": "SIMADU Backend API",
     "require": {
         "phpoffice/phpspreadsheet": "^5.9",
-        "phpoffice/phpword": "^1.4"
+        "phpoffice/phpword": "^1.4",
+        "minishlink/web-push": "^11.0",
+        "guzzlehttp/guzzle": "^8.0"
     },
     "autoload": {
         "psr-4": {

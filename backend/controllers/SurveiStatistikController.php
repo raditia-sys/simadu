@@ -19,44 +19,74 @@ class SurveiStatistikController
     {
         requireAuth();
         $id   = query('id');
+        $kode = trim(query('kode') ?? '');
         $nama = trim(query('nama') ?? '');
-        if ($nama === '' && !$id) respond(false, null, 'Parameter nama atau id wajib diisi.', 422);
+        if ($nama === '' && $kode === '' && !$id) {
+            respond(false, null, 'Parameter nama, kode, atau id wajib diisi.', 422);
+        }
 
         $pdo = Database::connect();
+        $survei = null;
 
         if ($id) {
             $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE id = ? LIMIT 1');
             $stmt->execute([(int)$id]);
             $survei = $stmt->fetch();
         } else {
-            $aliases = [
-                'SAPB' => 'Survei Angkutan Penumpang dan Barang',
-                'HD' => 'Survei Harga Perdesaan',
-                'HKD' => 'Survei Harga Konsumen Perdesaan',
-                'SHP' => 'Survei Harga Produsen',
-                'SHPB' => 'Survei Harga Perdagangan Besar',
-                'SHKK' => 'Survei Harga Kemahalan Konstruksi',
-                'BUMD' => 'Survei Keuangan Badan Usaha Milik Daerah',
-                'SLK' => 'Survei Lembaga Keuangan - Koperasi Simpan Pinjam',
-                'SLK-KSP' => 'Survei Lembaga Keuangan - Koperasi Simpan Pinjam',
-                'K3' => 'Survei Keuangan Konstruksi',
-                'VHTL' => 'Survei Hotel dan Jasa Akomodasi Lainnya Tahunan',
-                'VHTS' => 'Survei Tingkat Penghunian Kamar Hotel',
-                'SE2026 Persiapan' => 'Persiapan Sensus Ekonomi',
-                'SE2026 Pelaksanaan' => 'Pelaksanaan Sensus Ekonomi',
-                'SE2026 Pengolahan & Diseminasi' => 'Pengolahan dan Diseminasi Sensus Ekonomi',
-            ];
+            // 1. Coba cari berdasarkan nama_survei exact terlebih dahulu (prioritas tertinggi untuk membedakan nama unik seperti SHPB Bulanan & Mingguan)
+            if ($nama !== '') {
+                $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE nama_survei = ? LIMIT 1');
+                $stmt->execute([$nama]);
+                $survei = $stmt->fetch();
+            }
 
-            $searchName = $aliases[strtoupper($nama)] ?? $aliases[$nama] ?? $nama;
+            // 2. Coba cari berdasarkan kode_survei jika parameter kode ada
+            if (!$survei && $kode !== '') {
+                $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE kode_survei = ? LIMIT 1');
+                $stmt->execute([$kode]);
+                $survei = $stmt->fetch();
+            }
 
-            // Coba exact match dulu, lalu fallback ke LIKE
-            $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE nama_survei = ? LIMIT 1');
-            $stmt->execute([$searchName]);
-            $survei = $stmt->fetch();
+            // 3. Coba cari jika $nama adalah kode_survei (misal kirim nama="K3" atau "SLK-KSP")
+            if (!$survei && $nama !== '') {
+                $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE kode_survei = ? LIMIT 1');
+                $stmt->execute([$nama]);
+                $survei = $stmt->fetch();
+            }
 
+            // 4. Cek alias map
             if (!$survei) {
+                $aliases = [
+                    'SAPB' => 'Survei Angkutan Penumpang dan Barang',
+                    'HD' => 'Survei Harga Perdesaan',
+                    'HKD' => 'Survei Harga Konsumen Perdesaan',
+                    'SHP' => 'Survei Harga Produsen',
+                    'SHPB' => 'Survei Harga Perdagangan Besar (Bulanan)',
+                    'SHKK' => 'Survei Harga Kemahalan Konstruksi',
+                    'BUMD' => 'Survei Keuangan Badan Usaha Milik Daerah',
+                    'SLK' => 'Survei Lembaga Keuangan - Koperasi Simpan Pinjam',
+                    'SLK-KSP' => 'Survei Lembaga Keuangan - Koperasi Simpan Pinjam',
+                    'K3' => 'Survei Statistik Keuangan Pemerintah Desa',
+                    'Survei Keuangan Konstruksi' => 'Survei Statistik Keuangan Pemerintah Desa',
+                    'VHTL' => 'Survei Hotel dan Jasa Akomodasi Lainnya Tahunan',
+                    'VHTS' => 'Survei Tingkat Penghunian Kamar Hotel',
+                    'SE2026 Persiapan' => 'Persiapan Sensus Ekonomi',
+                    'SE2026 Pelaksanaan' => 'Pelaksanaan Sensus Ekonomi',
+                    'SE2026 Pengolahan & Diseminasi' => 'Pengolahan dan Diseminasi Sensus Ekonomi',
+                ];
+
+                $aliasTarget = $aliases[strtoupper($kode)] ?? $aliases[$kode] ?? $aliases[strtoupper($nama)] ?? $aliases[$nama] ?? null;
+                if ($aliasTarget) {
+                    $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE nama_survei = ? OR kode_survei = ? LIMIT 1');
+                    $stmt->execute([$aliasTarget, $aliasTarget]);
+                    $survei = $stmt->fetch();
+                }
+            }
+
+            // 5. Fallback ke LIKE pada nama_survei
+            if (!$survei && $nama !== '') {
                 $stmt = $pdo->prepare('SELECT * FROM master_survei WHERE nama_survei LIKE ? LIMIT 1');
-                $stmt->execute(['%' . $searchName . '%']);
+                $stmt->execute(['%' . $nama . '%']);
                 $survei = $stmt->fetch();
             }
         }

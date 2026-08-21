@@ -60,6 +60,8 @@ require ROOT_DIR . '/controllers/KalenderController.php';
 require ROOT_DIR . '/controllers/TimController.php';
 require ROOT_DIR . '/controllers/LogAktivitasController.php';
 require ROOT_DIR . '/controllers/LaporanPerjalananController.php';
+require ROOT_DIR . '/controllers/UserController.php';
+require ROOT_DIR . '/controllers/NotificationController.php';
 // Composer autoload (PhpSpreadsheet dll.) — di-load lazy di dalam controller bila dibutuhkan
 // require ROOT_DIR . '/vendor/autoload.php'; // jangan di-load global agar request biasa tetap ringan
 
@@ -174,6 +176,22 @@ $routes = [
     'DELETE /api/perjalanan/{id}/foto/{fotoId}'  => [LaporanPerjalananController::class, 'deleteFoto'],
     'POST /api/perjalanan/{id}/selesai'          => [LaporanPerjalananController::class, 'selesai'],
     'GET /api/perjalanan/{id}/download'          => [LaporanPerjalananController::class, 'download'],
+
+    // ── Master Akun Admin (superadmin) ───────────────────────────────────────
+    'GET /api/users/available-pegawai' => [UserController::class, 'availablePegawai'],
+    'GET /api/users'                   => [UserController::class, 'index'],
+    'POST /api/users'                  => [UserController::class, 'store'],
+    'PUT /api/users/{id}/password'     => [UserController::class, 'changePassword'],
+    'PUT /api/users/{id}'              => [UserController::class, 'update'],
+    'DELETE /api/users/{id}'           => [UserController::class, 'destroy'],
+
+    // ── Web Push Notification ────────────────────────────────────────────────
+    'GET /api/notifications/vapid-key'       => [NotificationController::class, 'getVapidPublicKey'],
+    'POST /api/notifications/subscribe'      => [NotificationController::class, 'subscribe'],
+    'POST /api/notifications/unsubscribe'    => [NotificationController::class, 'unsubscribe'],
+    'POST /api/notifications/test-push'      => [NotificationController::class, 'testPush'],
+    'POST /api/notifications/check-deadlines'=> [NotificationController::class, 'checkDeadlines'],
+    'GET /api/notifications/check-deadlines' => [NotificationController::class, 'checkDeadlines'],
 ];
 
 

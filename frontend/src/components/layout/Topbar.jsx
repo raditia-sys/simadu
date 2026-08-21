@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import NotificationBell from './NotificationBell';
 
 // ─── Route → breadcrumb label map ────────────────────────────────────────────
 const BREADCRUMB_MAP = {
@@ -31,6 +32,7 @@ const BREADCRUMB_MAP = {
   '/master/mitra':            ['Master Data', 'Mitra'],
   '/master/survei':           ['Master Data', 'Survei'],
   '/master/kegiatan':         ['Master Data', 'Kegiatan'],
+  '/master/users':            ['Master Data', 'Akun Admin'],
 };
 
 export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarCollapsed }) {
@@ -86,8 +88,11 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
         </nav>
       </div>
 
-      {/* ── Right: Dark mode toggle + User info ── */}
+      {/* ── Right: Notifications + Dark mode toggle + User info ── */}
       <div className="flex items-center gap-2 flex-shrink-0">
+
+        {/* Notifikasi Web Push */}
+        <NotificationBell />
 
         <button
           id="dark-mode-toggle"

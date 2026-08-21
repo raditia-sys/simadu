@@ -21,7 +21,7 @@ const inputCls = 'w-full text-sm px-3.5 py-2.5 rounded-xl border border-border-s
 const labelCls = 'block text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1';
 
 // ─── Step 1: Data Perjalanan Dinas ───────────────────────────────────────────
-function Step1({ laporan, petugas, wilayah, surveys, onSaved }) {
+function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState(() => laporan ? {
     petugas_id:          String(laporan.petugas_id ?? ''),
@@ -29,14 +29,13 @@ function Step1({ laporan, petugas, wilayah, surveys, onSaved }) {
     tanggal_surat_tugas: laporan.tanggal_surat_tugas ?? today,
     tujuan_wilayah_id:   String(laporan.tujuan_wilayah_id ?? ''),
     survei_id:           laporan.survei_id ? String(laporan.survei_id) : '',
-    tanggal_berangkat:   laporan.tanggal_berangkat ?? today,
-    tanggal_kembali:     laporan.tanggal_kembali   ?? today,
+    tanggal_tugas:       laporan.tanggal_tugas ?? laporan.tanggal_berangkat ?? today,
     maksud_perjalanan:   laporan.maksud_perjalanan ?? '',
-    biaya_transport:     laporan.biaya_transport    ? String(laporan.biaya_transport) : '',
+    biaya_transport:     laporan.biaya_transport ? String(laporan.biaya_transport) : '',
   } : {
     petugas_id: '', nomor_surat: '', tanggal_surat_tugas: today,
     tujuan_wilayah_id: '', survei_id: '',
-    tanggal_berangkat: today, tanggal_kembali: today,
+    tanggal_tugas: today,
     maksud_perjalanan: '', biaya_transport: '',
   });
   const [saving, setSaving] = useState(false);
@@ -52,11 +51,17 @@ function Step1({ laporan, petugas, wilayah, surveys, onSaved }) {
   }, [form.tujuan_wilayah_id]);
 
   async function save() {
-    if (!form.petugas_id || !form.tujuan_wilayah_id || !form.tanggal_berangkat || !form.tanggal_kembali || !form.maksud_perjalanan.trim()) {
+    if (!form.petugas_id || !form.tujuan_wilayah_id || !form.survei_id || !form.tanggal_tugas || !form.maksud_perjalanan.trim()) {
       setError('Lengkapi semua field bertanda *'); return;
     }
     setSaving(true); setError('');
-    const payload = { ...form, survei_id: form.survei_id || null, biaya_transport: form.biaya_transport || 0 };
+    const payload = {
+      ...form,
+      tanggal_berangkat: form.tanggal_tugas,
+      tanggal_kembali: form.tanggal_tugas,
+      survei_id: form.survei_id ? Number(form.survei_id) : null,
+      biaya_transport: form.biaya_transport || 0,
+    };
     const res = laporan
       ? await api.put(`/perjalanan/${laporan.id}`, payload)
       : await api.post('/perjalanan', payload);
@@ -92,6 +97,13 @@ function Step1({ laporan, petugas, wilayah, surveys, onSaved }) {
           <input type="date" value={form.tanggal_surat_tugas} onChange={sf('tanggal_surat_tugas')} className={inputCls} />
         </div>
         <div>
+          <label className={labelCls}>Tanggal Tugas *</label>
+          <input type="date" value={form.tanggal_tugas} onChange={sf('tanggal_tugas')} className={inputCls} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
           <label className={labelCls}>Wilayah Tujuan *</label>
           <select value={form.tujuan_wilayah_id} onChange={sf('tujuan_wilayah_id')} className={selCls}>
             <option value="">— Pilih wilayah —</option>
@@ -103,32 +115,26 @@ function Step1({ laporan, petugas, wilayah, surveys, onSaved }) {
             ))}
           </select>
         </div>
-      </div>
-
-      <div>
-        <label className={labelCls}>Survei Terkait</label>
-        <select value={form.survei_id} onChange={sf('survei_id')} className={selCls}>
-          <option value="">— Tidak terkait survei tertentu —</option>
-          {surveys.map(s => <option key={s.id} value={s.id}>{s.nama_survei}</option>)}
-        </select>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className={labelCls}>Tanggal Berangkat *</label>
-          <input type="date" value={form.tanggal_berangkat} onChange={sf('tanggal_berangkat')} className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>Tanggal Kembali *</label>
-          <input type="date" value={form.tanggal_kembali} onChange={sf('tanggal_kembali')} className={inputCls} />
+          <label className={labelCls}>Survei Terkait *</label>
+          <select value={form.survei_id} onChange={sf('survei_id')} className={selCls}>
+            <option value="">— Pilih survei terkait —</option>
+            {surveys.map(s => <option key={s.id} value={s.id}>{s.nama_survei}</option>)}
+          </select>
         </div>
       </div>
 
       <div>
         <label className={labelCls}>Maksud / Tujuan Perjalanan *</label>
-        <textarea value={form.maksud_perjalanan} onChange={sf('maksud_perjalanan')} rows={3}
-          placeholder="Contoh: Pendataan lapangan SE2026 Persiapan Desa X, Kecamatan Y"
-          className={inputCls + ' resize-none'} />
+        <select value={form.maksud_perjalanan} onChange={sf('maksud_perjalanan')} className={selCls}>
+          <option value="">— Pilih maksud / tujuan kegiatan —</option>
+          {kegiatanList.map(k => (
+            <option key={k.id} value={k.nama}>{k.nama}</option>
+          ))}
+          {form.maksud_perjalanan && !kegiatanList.some(k => k.nama === form.maksud_perjalanan) && (
+            <option value={form.maksud_perjalanan}>{form.maksud_perjalanan}</option>
+          )}
+        </select>
       </div>
 
       <div>
@@ -153,17 +159,57 @@ function Step1({ laporan, petugas, wilayah, surveys, onSaved }) {
 }
 
 // ─── Step 2: Rundown Kegiatan ─────────────────────────────────────────────────
+function getDefaultRundown(laporan) {
+  const tgl = laporan?.tanggal_tugas || laporan?.tanggal_berangkat || new Date().toISOString().slice(0, 10);
+  const kec = laporan?.wilayah?.kecamatan || 'Kecamatan Tujuan';
+  return [
+    {
+      hari_tanggal: tgl,
+      waktu_mulai: '07:30',
+      waktu_selesai: '08:00',
+      kegiatan: 'Persiapan Turun Lapangan',
+      lokasi: 'BPS Kab. Batang Hari',
+      deskripsi: '',
+    },
+    {
+      hari_tanggal: tgl,
+      waktu_mulai: '08:00',
+      waktu_selesai: '09:30',
+      kegiatan: `Perjalanan dari BPS Kabupaten Batang Hari Menuju Kecamatan ${kec}`,
+      lokasi: `Kecamatan ${kec}`,
+      deskripsi: '',
+    },
+    {
+      hari_tanggal: tgl,
+      waktu_mulai: '09:30',
+      waktu_selesai: '15:30',
+      kegiatan: 'Turun Lapangan',
+      lokasi: `Kecamatan ${kec}`,
+      deskripsi: '',
+    },
+    {
+      hari_tanggal: tgl,
+      waktu_mulai: '15:30',
+      waktu_selesai: '16:30',
+      kegiatan: 'Perjalanan kembali ke Muara Bulian, Kab. Batang Hari',
+      lokasi: 'BPS Kab. Batang Hari',
+      deskripsi: '',
+    },
+  ];
+}
+
 function Step2({ laporan, onSaved }) {
   const [rows, setRows] = useState(() =>
     (laporan?.rundown ?? []).length > 0
       ? laporan.rundown.map(r => ({ ...r }))
-      : [{ hari_tanggal: laporan?.tanggal_berangkat ?? '', waktu_mulai: '', waktu_selesai: '', kegiatan: '', lokasi: '', deskripsi: '' }]
+      : getDefaultRundown(laporan)
   );
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
 
   function addRow() {
-    setRows(r => [...r, { hari_tanggal: laporan?.tanggal_berangkat ?? '', waktu_mulai: '', waktu_selesai: '', kegiatan: '', lokasi: '', deskripsi: '' }]);
+    const tgl = laporan?.tanggal_tugas || laporan?.tanggal_berangkat || '';
+    setRows(r => [...r, { hari_tanggal: tgl, waktu_mulai: '', waktu_selesai: '', kegiatan: '', lokasi: '', deskripsi: '' }]);
   }
   function removeRow(i) { setRows(r => r.filter((_, j) => j !== i)); }
   function update(i, k, v) { setRows(r => r.map((row, j) => j === i ? { ...row, [k]: v } : row)); }
@@ -182,9 +228,19 @@ function Step2({ laporan, onSaved }) {
     <div className="space-y-4">
       {error && <p className="text-sm text-accent-orange dark:text-dark-accent-orange bg-accent-orange/5 px-3 py-2 rounded-lg">{error}</p>}
 
-      <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
-        Isi jadwal kegiatan selama perjalanan dinas. Klik <strong>+ Tambah Kegiatan</strong> untuk menambah baris.
-      </p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
+          Jadwal kegiatan otomatis diisi sesuai template resmi. Anda dapat menyesuaikan jam, lokasi, atau menambah kegiatan.
+        </p>
+        <button
+          type="button"
+          onClick={() => setRows(getDefaultRundown(laporan))}
+          className="btn-secondary text-xs py-1.5 px-3 rounded-lg"
+          title="Kembalikan ke template awal 4 kegiatan"
+        >
+          🔄 Reset Template
+        </button>
+      </div>
 
       <div className="space-y-3">
         {rows.map((row, i) => (
@@ -208,11 +264,11 @@ function Step2({ laporan, onSaved }) {
                 <input type="date" value={row.hari_tanggal ?? ''} onChange={e => update(i, 'hari_tanggal', e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>Waktu Mulai</label>
+                <label className={labelCls}>Waktu Mulai (WIB)</label>
                 <input type="time" value={row.waktu_mulai ?? ''} onChange={e => update(i, 'waktu_mulai', e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>Waktu Selesai</label>
+                <label className={labelCls}>Waktu Selesai (WIB)</label>
                 <input type="time" value={row.waktu_selesai ?? ''} onChange={e => update(i, 'waktu_selesai', e.target.value)} className={inputCls} />
               </div>
               <div>
@@ -418,6 +474,7 @@ export default function LaporanPerjalananPage() {
   const [petugas,  setPetugas]  = useState([]);
   const [wilayah,  setWilayah]  = useState([]);
   const [surveys,  setSurveys]  = useState([]);
+  const [kegiatanList, setKegiatanList] = useState([]);
   const [confirmId, setConfirmId] = useState(null);
   const [deleting,  setDeleting]  = useState(false);
   const [toast,    setToast]    = useState('');
@@ -444,6 +501,7 @@ export default function LaporanPerjalananPage() {
     api.get('/master/petugas').then(r => { if (r.success) setPetugas(r.data); });
     api.get('/master/wilayah').then(r => { if (r.success) setWilayah(r.data); });
     api.get('/master/survei').then(r => { if (r.success) setSurveys(r.data); });
+    api.get('/master/kegiatan').then(r => { if (r.success) setKegiatanList(r.data); });
   }, []);
 
   useEffect(() => { loadList(); }, [loadList]);
@@ -538,6 +596,7 @@ export default function LaporanPerjalananPage() {
               petugas={petugas}
               wilayah={wilayah}
               surveys={surveys}
+              kegiatanList={kegiatanList}
               onSaved={(data) => { setLaporan(data); setStep(1); }}
             />
           )}
@@ -611,7 +670,7 @@ export default function LaporanPerjalananPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-navy/5 dark:bg-dark-navy/10">
-                {['Petugas','Nomor Surat','Wilayah Tujuan','Tanggal','Durasi','Biaya','Survei','Progress','Status','Aksi'].map(h => (
+                {['Petugas','Nomor Surat','Wilayah Tujuan','Tgl Surat Tugas','Tgl Tugas','Biaya','Survei','Progress','Status','Aksi'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -638,7 +697,6 @@ export default function LaporanPerjalananPage() {
                   const paginatedList = isAll ? list : list.slice(startIndex, endIndex);
 
                   return paginatedList.map(row => {
-                    const durasi = diffDays(row.tanggal_berangkat, row.tanggal_kembali);
                     return (
                       <tr key={row.id} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -651,10 +709,10 @@ export default function LaporanPerjalananPage() {
                           <p className="text-xs text-text-secondary dark:text-dark-text-secondary">{row.kecamatan}</p>
                         </td>
                         <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
-                          {row.tanggal_berangkat}<br />{row.tanggal_kembali}
+                          {row.tanggal_surat_tugas || '—'}
                         </td>
-                        <td className="px-4 py-3 text-xs text-center font-semibold text-text-primary dark:text-dark-text-primary">
-                          {durasi !== null ? `${durasi} hr` : '—'}
+                        <td className="px-4 py-3 text-xs font-mono font-medium text-text-primary dark:text-dark-text-primary whitespace-nowrap">
+                          {row.tanggal_tugas || row.tanggal_berangkat || '—'}
                         </td>
                         <td className="px-4 py-3 text-sm font-mono whitespace-nowrap text-text-primary dark:text-dark-text-primary">
                           {formatRupiah(row.biaya_transport)}
@@ -683,11 +741,9 @@ export default function LaporanPerjalananPage() {
                             {/* Lanjutkan / Edit wizard */}
                             <button onClick={() => resumeWizard(row)} title={row.status_pengisian === 'draft' ? 'Lanjutkan wizard' : 'Buka wizard'}
                               className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all">
-                              {row.status_pengisian === 'draft' ? (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487 18.549 2.8a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-                              ) : (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                              )}
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                              </svg>
                             </button>
 
                             {/* Download ulang (jika selesai) */}

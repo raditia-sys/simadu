@@ -47,11 +47,11 @@ class LaporanPerjalananController
             $params[] = (int)$petugas_id;
         }
         if ($dari = query('dari')) {
-            $where[]  = 'lp.tanggal_berangkat >= ?';
+            $where[]  = 'COALESCE(lp.tanggal_tugas, lp.tanggal_berangkat) >= ?';
             $params[] = $dari;
         }
         if ($sampai = query('sampai')) {
-            $where[]  = 'lp.tanggal_kembali <= ?';
+            $where[]  = 'COALESCE(lp.tanggal_tugas, lp.tanggal_kembali) <= ?';
             $params[] = $sampai;
         }
         if ($status = query('status')) {
@@ -63,7 +63,7 @@ class LaporanPerjalananController
 
         $stmt = $pdo->prepare("
             SELECT
-                lp.id, lp.nomor_surat, lp.tanggal_surat_tugas, lp.tanggal_berangkat, lp.tanggal_kembali,
+                lp.id, lp.nomor_surat, lp.tanggal_surat_tugas, lp.tanggal_tugas, lp.tanggal_berangkat, lp.tanggal_kembali,
                 lp.maksud_perjalanan, lp.biaya_transport, lp.status_pengisian, lp.created_at,
                 p.nama AS nama_petugas, p.tipe AS tipe_petugas, p.jabatan, p.nip_atau_kode_mitra,
                 mw.kecamatan, mw.desa_kelurahan, mw.rate_transport_lokal,
@@ -127,11 +127,15 @@ class LaporanPerjalananController
         $pdo  = Database::connect();
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
+        // Support single tanggal_tugas or legacy tanggal_berangkat
+        $tglTugas = $body['tanggal_tugas'] ?? $body['tanggal_berangkat'] ?? null;
+        $body['tanggal_tugas'] = $tglTugas;
+
         $required = [
             'petugas_id'        => 'Petugas',
             'tujuan_wilayah_id' => 'Wilayah Tujuan',
-            'tanggal_berangkat' => 'Tanggal Berangkat',
-            'tanggal_kembali'   => 'Tanggal Kembali',
+            'survei_id'         => 'Survei Terkait',
+            'tanggal_tugas'     => 'Tanggal Tugas',
             'maksud_perjalanan' => 'Maksud Perjalanan',
         ];
         validateRequired($body, $required);
@@ -150,19 +154,20 @@ class LaporanPerjalananController
 
         $stmt = $pdo->prepare("
             INSERT INTO laporan_perjalanan_dinas
-                (petugas_id, nomor_surat, tanggal_surat_tugas, tujuan_wilayah_id, survei_id,
+                (petugas_id, nomor_surat, tanggal_surat_tugas, tanggal_tugas, tujuan_wilayah_id, survei_id,
                  tanggal_berangkat, tanggal_kembali, maksud_perjalanan, biaya_transport,
                  status_pengisian, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, NOW())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, NOW())
         ");
         $stmt->execute([
             (int)$body['petugas_id'],
             trim($body['nomor_surat'] ?? ''),
             $body['tanggal_surat_tugas'] ?? null,
+            $tglTugas,
             (int)$body['tujuan_wilayah_id'],
             !empty($body['survei_id']) ? (int)$body['survei_id'] : null,
-            $body['tanggal_berangkat'],
-            $body['tanggal_kembali'],
+            $tglTugas,
+            $tglTugas,
             trim($body['maksud_perjalanan']),
             $biaya,
             $userId,
@@ -193,7 +198,12 @@ class LaporanPerjalananController
             if ($w) $body['biaya_transport'] = $w['rate_transport_lokal'];
         }
 
-        $allowed = ['petugas_id','nomor_surat','tanggal_surat_tugas','tujuan_wilayah_id',
+        if (isset($body['tanggal_tugas'])) {
+            $body['tanggal_berangkat'] = $body['tanggal_tugas'];
+            $body['tanggal_kembali']   = $body['tanggal_tugas'];
+        }
+
+        $allowed = ['petugas_id','nomor_surat','tanggal_surat_tugas','tanggal_tugas','tujuan_wilayah_id',
                     'survei_id','tanggal_berangkat','tanggal_kembali','maksud_perjalanan','biaya_transport'];
         $cols = []; $params = [];
         foreach ($allowed as $col) {
@@ -471,12 +481,39 @@ class LaporanPerjalananController
     // PRIVATE HELPERS
     // ─────────────────────────────────────────────────────────────────────────
 
+    private static function formatTanggalIndo(?string $dateStr): string
+    {
+        if (!$dateStr) return '';
+        $bulan = [
+            1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+        $ts = strtotime($dateStr);
+        $d  = (int)date('d', $ts);
+        $m  = (int)date('n', $ts);
+        $y  = date('Y', $ts);
+        return "$d " . ($bulan[$m] ?? '') . " $y";
+    }
+
+    private static function getNamaHariIndo(?string $dateStr): string
+    {
+        if (!$dateStr) return '-';
+        $hari = [
+            'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
+        ];
+        $dayEn = date('l', strtotime($dateStr));
+        return $hari[$dayEn] ?? $dayEn;
+    }
+
     private static function buildVars(array $l, array $p, array $w, ?array $s): array
     {
-        $tglSTugas  = $l['tanggal_surat_tugas'] ? date('d F Y', strtotime($l['tanggal_surat_tugas'])) : '';
-        $tglMulai   = $l['tanggal_berangkat']   ? date('d F Y', strtotime($l['tanggal_berangkat']))   : '';
-        $tglSelesai = $l['tanggal_kembali']      ? date('d F Y', strtotime($l['tanggal_kembali']))     : '';
-        $tglTugas   = $tglMulai === $tglSelesai ? $tglMulai : "$tglMulai s.d. $tglSelesai";
+        $tglSTugasRaw = $l['tanggal_surat_tugas'] ?? null;
+        $tglTugasRaw  = $l['tanggal_tugas'] ?? $l['tanggal_berangkat'] ?? null;
+
+        $tglSTugas  = self::formatTanggalIndo($tglSTugasRaw);
+        $tglTugas   = self::formatTanggalIndo($tglTugasRaw);
+        $hariTugas  = self::getNamaHariIndo($tglTugasRaw);
 
         // Key sesuai placeholder ${...} di template Word
         return [
@@ -487,7 +524,7 @@ class LaporanPerjalananController
             'NoSurat'       => $l['nomor_surat']          ?? '',
             'TglSTugas'     => $tglSTugas,
             'TglTugas'      => $tglTugas,
-            'rentang_waktu' => $tglTugas,
+            'Hari'          => $hariTugas,
             'Kegiatan'      => $l['maksud_perjalanan']    ?? '',
             'Kecamatan'     => $w['kecamatan']            ?? '',
             'Deskripsi'     => $l['ringkasan_hasil']      ?? '',
@@ -516,28 +553,26 @@ class LaporanPerjalananController
 
         $proc = new \PhpOffice\PhpWord\TemplateProcessor($tplPath);
 
-        // Isi semua placeholder teks biasa (Pegawai, NIP, Jabatan, dst)
+        // Isi semua placeholder teks biasa (Pegawai, NIP, Jabatan, TglSTugas, TglTugas, Hari, Kecamatan, dst)
         foreach ($vars as $key => $value) {
             $proc->setValue($key, htmlspecialchars((string)($value ?? ''), ENT_XML1, 'UTF-8'));
         }
 
-        // ── Rundown: Template memiliki baris preset, isi placeholder-nya langsung ──
-        // ${Hari} dan ${TglTugas} tergabung dalam satu sel → gunakan setValue biasa
-        // Ambil entri rundown pertama untuk placeholder utama di tabel
-        $r0 = $rundown[0] ?? null;
-        $hari0 = $r0 && $r0['hari_tanggal'] ? date('l', strtotime($r0['hari_tanggal'])) : '-';
-        $tgl0  = $r0 && $r0['hari_tanggal'] ? date('d F Y', strtotime($r0['hari_tanggal'])) : '-';
-        $waktu0 = '';
-        if ($r0 && $r0['waktu_mulai']) {
-            $waktu0 = substr($r0['waktu_mulai'], 0, 5);
-            if ($r0['waktu_selesai']) $waktu0 .= ' - ' . substr($r0['waktu_selesai'], 0, 5);
+        // ── Rundown: Isi placeholder ${rentang_waktu} untuk setiap baris kegiatan ──
+        if (!empty($rundown)) {
+            foreach ($rundown as $r) {
+                $waktu = '';
+                if (!empty($r['waktu_mulai'])) {
+                    $waktu = substr($r['waktu_mulai'], 0, 5);
+                    if (!empty($r['waktu_selesai'])) {
+                        $waktu .= ' - ' . substr($r['waktu_selesai'], 0, 5);
+                    }
+                }
+                $proc->setValue('rentang_waktu', htmlspecialchars($waktu ?: '-', ENT_XML1, 'UTF-8'), 1);
+            }
         }
-        $kegiatan0 = $r0
-            ? ($r0['kegiatan'] ?? '') . ($r0['lokasi'] ? ', ' . $r0['lokasi'] : '')
-            : '-';
-
-        $proc->setValue('Hari',          htmlspecialchars($hari0,     ENT_XML1, 'UTF-8'));
-        $proc->setValue('rentang_waktu', htmlspecialchars($waktu0,    ENT_XML1, 'UTF-8'));
+        // Bersihkan jika ada sisa placeholder rentang_waktu yang belum terisi
+        $proc->setValue('rentang_waktu', '-');
 
         // ── Foto: ganti placeholder ${Foto} dengan keterangan foto (teks) ───
         if (!empty($fotos)) {

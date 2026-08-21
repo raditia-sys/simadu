@@ -27,9 +27,10 @@ const BULAN_OPTS = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Ok
  *
  * Props:
  * - surveiNama: string  e.g. "SAPB", "SHP", "SE2026 Persiapan"
+ * - kodeSurvei: string  (opsional, e.g. "K3", "SLK-KSP", "BUMD")
  * - kategori: string   (opsional, untuk label konteks)
  */
-export default function SurveiPage({ surveiNama, kategori }) {
+export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   const today = new Date();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -66,14 +67,26 @@ export default function SurveiPage({ surveiNama, kategori }) {
   // ── Load survei info ───────────────────────────────────────────────────────
   useEffect(() => {
     setSurveiLoading(true);
-    api.get('/survei-statistik/info?nama=' + encodeURIComponent(surveiNama)).then((res) => {
-      if (res.success && res.data) setSurvei(res.data);
+    setSurvei(null);
+    setProgressData({ by_kecamatan: [], by_desa: [] });
+    setPetugasData([]);
+
+    const params = new URLSearchParams();
+    if (surveiNama) params.set('nama', surveiNama);
+    if (kodeSurvei) params.set('kode', kodeSurvei);
+
+    api.get('/survei-statistik/info?' + params.toString()).then((res) => {
+      if (res.success && res.data) {
+        setSurvei(res.data);
+      } else {
+        setSurvei(null);
+      }
       setSurveiLoading(false);
     });
     api.get('/dashboard/years').then((res) => {
       if (res.success) setYears(res.data);
     });
-  }, [surveiNama]);
+  }, [surveiNama, kodeSurvei]);
 
   // ── Build filter QS ───────────────────────────────────────────────────────
   const filterQs = useCallback((extra = {}) => {
