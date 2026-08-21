@@ -19,7 +19,6 @@ export default function LogAktivitasPage() {
   const today = new Date().toISOString().slice(0, 10);
   const [data,    setData]    = useState([]);
   const [loading, setLoading] = useState(true);
-  const [users,   setUsers]   = useState([]);
 
   const [f, setF] = useState({
     user_id: '', aksi: '', dari: '', sampai: today, limit: '200',

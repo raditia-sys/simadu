@@ -30,14 +30,14 @@ $sql = "
     LEFT JOIN petugas p ON p.id = t.petugas_id
     WHERE t.deadline IS NOT NULL
       AND t.sampel_selesai < t.target_sampel
-      AND DATEDIFF(t.deadline, CURDATE()) IN (0, 1, 3)
+      AND DATEDIFF(t.deadline, CURDATE()) IN (0, 1, 3, 5)
     ORDER BY t.deadline ASC
 ";
 $stmt = $pdo->query($sql);
 $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (empty($tasks)) {
-    echo "[" . date('Y-m-d H:i:s') . "] Tidak ada tugas yang mendekati deadline (H-3, H-1, Hari H) saat ini.\n";
+    echo "[" . date('Y-m-d H:i:s') . "] Tidak ada tugas yang mendekati deadline (H-5, H-3, H-1, Hari H) saat ini.\n";
     exit(0);
 }
 
@@ -78,6 +78,7 @@ $notifiedCount = 0;
 foreach ($tasks as $task) {
     $sisaHari = (int)$task['sisa_hari'];
     $threshold = match ($sisaHari) {
+        5 => 'H-5',
         3 => 'H-3',
         1 => 'H-1',
         0 => 'H-0',
@@ -85,9 +86,10 @@ foreach ($tasks as $task) {
     };
 
     $labelStatus = match ($sisaHari) {
-        3 => '3 hari lagi',
+        5 => '5 hari lagi (H-5)',
+        3 => '3 hari lagi (H-3)',
         1 => 'besok (H-1)',
-        0 => 'HARI INI',
+        0 => 'HARI INI (Hari H)',
         default => "$sisaHari hari lagi",
     };
 

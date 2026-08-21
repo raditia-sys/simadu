@@ -17,20 +17,30 @@ async function request(method, path, body) {
     options.body = JSON.stringify(body);
   }
 
-  const res = await fetch(BASE + path, options);
-  const json = await res.json().catch(() => ({
-    success: false,
-    data: null,
-    message: `HTTP ${res.status} — respons tidak valid`,
-  }));
+  try {
+    const res = await fetch(BASE + path, options);
+    const json = await res.json().catch(() => ({
+      success: false,
+      data: null,
+      message: `HTTP ${res.status} — respons tidak valid`,
+    }));
 
-  // Jika server mengembalikan 401 dan bukan dari endpoint /auth,
-  // reload halaman agar redirect ke /login ditangani oleh AuthContext.
-  if (res.status === 401 && !path.startsWith('/auth')) {
-    window.dispatchEvent(new Event('simadu:unauthorized'));
+    // Jika server mengembalikan 401 dan bukan dari endpoint /auth,
+    // kirim event agar redirect ke /login ditangani oleh AuthContext.
+    if (res.status === 401 && !path.startsWith('/auth')) {
+      window.dispatchEvent(new Event('simadu:unauthorized'));
+    }
+
+    return { ...json, status: res.status, ok: res.ok };
+  } catch (err) {
+    return {
+      success: false,
+      data: null,
+      message: 'Gagal terhubung ke server. Periksa koneksi jaringan atau server backend.',
+      status: 0,
+      ok: false,
+    };
   }
-
-  return { ...json, status: res.status, ok: res.ok };
 }
 
 export const api = {

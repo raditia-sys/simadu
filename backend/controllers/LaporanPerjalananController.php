@@ -235,26 +235,37 @@ class LaporanPerjalananController
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
         $rows = $body['rundown'] ?? [];
 
-        // Hapus lama, insert baru
-        $pdo->prepare('DELETE FROM laporan_perjalanan_dinas_rundown WHERE laporan_id = ?')->execute([$id]);
+        try {
+            $pdo->beginTransaction();
 
-        $stmt = $pdo->prepare("
-            INSERT INTO laporan_perjalanan_dinas_rundown
-                (laporan_id, urutan, hari_tanggal, waktu_mulai, waktu_selesai, kegiatan, lokasi, deskripsi)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ");
+            // Hapus lama, insert baru
+            $pdo->prepare('DELETE FROM laporan_perjalanan_dinas_rundown WHERE laporan_id = ?')->execute([$id]);
 
-        foreach (array_values($rows) as $i => $r) {
-            $stmt->execute([
-                $id,
-                $i,
-                !empty($r['hari_tanggal']) ? $r['hari_tanggal'] : null,
-                !empty($r['waktu_mulai'])  ? $r['waktu_mulai']  : null,
-                !empty($r['waktu_selesai'])? $r['waktu_selesai']: null,
-                trim($r['kegiatan'] ?? ''),
-                trim($r['lokasi']   ?? '') ?: null,
-                trim($r['deskripsi']?? '') ?: null,
-            ]);
+            $stmt = $pdo->prepare("
+                INSERT INTO laporan_perjalanan_dinas_rundown
+                    (laporan_id, urutan, hari_tanggal, waktu_mulai, waktu_selesai, kegiatan, lokasi, deskripsi)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+
+            foreach (array_values($rows) as $i => $r) {
+                $stmt->execute([
+                    $id,
+                    $i,
+                    !empty($r['hari_tanggal']) ? $r['hari_tanggal'] : null,
+                    !empty($r['waktu_mulai'])  ? $r['waktu_mulai']  : null,
+                    !empty($r['waktu_selesai'])? $r['waktu_selesai']: null,
+                    trim($r['kegiatan'] ?? ''),
+                    trim($r['lokasi']   ?? '') ?: null,
+                    trim($r['deskripsi']?? '') ?: null,
+                ]);
+            }
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            respond(false, null, 'Gagal menyimpan rundown: ' . $e->getMessage(), 500);
         }
 
         $stmtR = $pdo->prepare('SELECT * FROM laporan_perjalanan_dinas_rundown WHERE laporan_id = ? ORDER BY urutan ASC');
@@ -367,11 +378,11 @@ class LaporanPerjalananController
         // Ambil data lengkap
         $stmtP = $pdo->prepare('SELECT * FROM petugas WHERE id = ?');
         $stmtP->execute([$laporan['petugas_id']]);
-        $petugas = $stmtP->fetch();
+        $petugas = $stmtP->fetch() ?: [];
 
         $stmtW = $pdo->prepare('SELECT * FROM master_wilayah WHERE id = ?');
         $stmtW->execute([$laporan['tujuan_wilayah_id']]);
-        $wilayah = $stmtW->fetch();
+        $wilayah = $stmtW->fetch() ?: [];
 
         $survei = null;
         if ($laporan['survei_id']) {
@@ -534,6 +545,16 @@ class LaporanPerjalananController
         ];
     }
 
+    /** Dapatkan path template docx yang valid (utamakan backend/templates/, fallback ke archive/) */
+    private static function getTemplatePath(string $filename): string
+    {
+        $local = ROOT_DIR . '/templates/' . $filename;
+        if (file_exists($local)) return $local;
+        $archive = ROOT_DIR . '/../archive/template/' . $filename;
+        if (file_exists($archive)) return $archive;
+        return $local;
+    }
+
     /** Isi template .docx menggunakan TemplateProcessor — layout asli tidak berubah */
     private static function fillTemplate(string $tplPath, array $vars, string $outPath): void
     {
@@ -544,11 +565,10 @@ class LaporanPerjalananController
         $proc->saveAs($outPath);
     }
 
-
     /** Buat Laporan Perjalanan Dinas.docx dari template asli */
     private static function genLaporan(array $vars, array $rundown, array $fotos, string $outDir): string
     {
-        $tplPath = ROOT_DIR . '/../archive/template/Template Laporan Perjalanan Dinas.docx';
+        $tplPath = self::getTemplatePath('Template Laporan Perjalanan Dinas.docx');
         $outPath = $outDir . 'Laporan_Perjalanan_Dinas.docx';
 
         $proc = new \PhpOffice\PhpWord\TemplateProcessor($tplPath);
@@ -586,11 +606,10 @@ class LaporanPerjalananController
         return $outPath;
     }
 
-
     /** Buat Pernyataan Tidak Menggunakan Kendaraan Dinas.docx dari template asli */
     private static function genPernyataan(array $vars, string $outDir): string
     {
-        $tplPath = ROOT_DIR . '/../archive/template/Template Pernyataan Tidak Menggunakan Kendaraan Dinas.docx';
+        $tplPath = self::getTemplatePath('Template Pernyataan Tidak Menggunakan Kendaraan Dinas.docx');
         $outPath = $outDir . 'Pernyataan_Tidak_Kendaraan_Dinas.docx';
 
         self::fillTemplate($tplPath, $vars, $outPath);
@@ -600,7 +619,7 @@ class LaporanPerjalananController
     /** Buat Transport Lokal Riil.docx dari template asli */
     private static function genTransportLokal(array $vars, string $outDir): string
     {
-        $tplPath = ROOT_DIR . '/../archive/template/Template Transport Lokal Riil.docx';
+        $tplPath = self::getTemplatePath('Template Transport Lokal Riil.docx');
         $outPath = $outDir . 'Transport_Lokal_Riil.docx';
 
         self::fillTemplate($tplPath, $vars, $outPath);

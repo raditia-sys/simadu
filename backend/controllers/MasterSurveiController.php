@@ -200,6 +200,9 @@ class MasterSurveiController
             respond(false, null, 'Data survei tidak ditemukan.', 404);
         }
 
+        $pdo->prepare('UPDATE dokumen SET survei_id = NULL WHERE survei_id = ?')->execute([$id]);
+        $pdo->prepare('UPDATE laporan_perjalanan_dinas SET survei_id = NULL WHERE survei_id = ?')->execute([$id]);
+
         $pdo->prepare('DELETE FROM master_survei WHERE id = ?')->execute([$id]);
         logActivity($pdo, (int)$user['id'], 'hapus_survei', 'master_survei', $id, $row['nama_survei']);
         respond(true, null, 'Data survei berhasil dihapus.');

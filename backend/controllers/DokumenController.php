@@ -248,10 +248,12 @@ class DokumenController
         $ext      = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         $safeName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $doc['nama_file']) . '.' . $ext;
 
+        while (ob_get_level()) ob_end_clean();
         header('Content-Type: ' . ($doc['mime_type'] ?: 'application/octet-stream'));
         header('Content-Disposition: attachment; filename="' . $safeName . '"');
         header('Content-Length: ' . filesize($filePath));
         header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: no-cache, must-revalidate');
         readfile($filePath);
         exit;
     }

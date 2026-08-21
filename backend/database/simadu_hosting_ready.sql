@@ -644,7 +644,7 @@ CREATE TABLE `tugas_kegiatan` (
   `created_by` int unsigned DEFAULT NULL COMMENT 'FKÔåÆusers.id (user yang input data)',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `pemeriksa_id` int DEFAULT NULL COMMENT 'FK ke petugas.id (tipe=pegawai)',
+  `pemeriksa_id` int unsigned DEFAULT NULL COMMENT 'FK ke petugas.id (tipe=pegawai)',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_tugas_periode` (`survei_id`,`wilayah_id`,`petugas_id`,`kegiatan_id`,`tahun`,`triwulan_ke`,`bulan`,`minggu_ke`),
   KEY `fk_tugas_kegiatan` (`kegiatan_id`),

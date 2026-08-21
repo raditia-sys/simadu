@@ -53,7 +53,6 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   // ── Petugas tabel ─────────────────────────────────────────────────────────
   const [petugasData,    setPetugasData]    = useState([]);
   const [petugasLoading, setPetugasLoading] = useState(false);
-  const [showPetugas,    setShowPetugas]    = useState(false);
   const [petugasPage,    setPetugasPage]    = useState(1);
   const [petugasPerPage, setPetugasPerPage] = useState(10);
   const [petugasSearch,  setPetugasSearch]  = useState('');

@@ -56,17 +56,18 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
   useEffect(() => {
     if (initialData) {
       setForm({
-        survei_id:          String(initialData.survei_id),
+        survei_id:          initialData.survei_id != null ? String(initialData.survei_id) : '',
         wilayah_kecamatan:  initialData.kecamatan ?? '',
-        wilayah_id:         String(initialData.wilayah_id),
-        petugas_id:         String(initialData.petugas_id),
-        kegiatan_id:        String(initialData.kegiatan_id),
+        wilayah_id:         initialData.wilayah_id != null ? String(initialData.wilayah_id) : '',
+        petugas_id:         initialData.petugas_id != null ? String(initialData.petugas_id) : '',
+        kegiatan_id:        initialData.kegiatan_id != null ? String(initialData.kegiatan_id) : '',
+        pemeriksa_id:       initialData.pemeriksa_id != null ? String(initialData.pemeriksa_id) : '',
         tahun:              initialData.tahun ?? new Date().getFullYear(),
         bulan:              initialData.bulan ?? '',
         triwulan_ke:        initialData.triwulan_ke ?? '',
         minggu_ke:          initialData.minggu_ke ?? '',
-        target_sampel:      String(initialData.target_sampel),
-        sampel_selesai:     String(initialData.sampel_selesai),
+        target_sampel:      initialData.target_sampel != null ? String(initialData.target_sampel) : '',
+        sampel_selesai:     initialData.sampel_selesai != null ? String(initialData.sampel_selesai) : '0',
         deadline:           initialData.deadline ?? '',
       });
       setJenisPeriode(initialData.jenis_periode ?? '');

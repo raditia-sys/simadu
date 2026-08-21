@@ -42,13 +42,22 @@ class KalenderController
 
         // ── 1. Ambil semua deadline unik per survei per periode ──────────────
         // Aggregate: satu event per survei+periode (bukan per petugas)
-        // Hanya ambil tugas yang belum selesai sepenuhnya
-        $whereSql  = 'WHERE t.tahun = ? AND t.deadline IS NOT NULL
-                      AND ms.deadline_hari IS NOT NULL';
-        $params    = [$tahun];
+        // Hanya ambil tugas yang memiliki deadline dan master survei ber-deadline_hari
+        $whereSql  = 'WHERE t.deadline IS NOT NULL AND ms.deadline_hari IS NOT NULL';
+        $params    = [];
         if ($bulan) {
-            $whereSql .= ' AND MONTH(t.deadline) = ?';
-            $params[]  = $bulan;
+            // Rentang tanggal dari 7 hari sebelum awal bulan sampai 7 hari setelah akhir bulan
+            // agar reminder H-5 / H-3 yang jatuh di bulan ini dari deadline awal bulan depan tetap terambil
+            $firstDay = sprintf('%04d-%02d-01', $tahun, $bulan);
+            $lastDay  = sprintf('%04d-%02d-%02d', $tahun, $bulan, (int)date('t', strtotime($firstDay)));
+            $startRange = date('Y-m-d', strtotime("$firstDay -7 days"));
+            $endRange   = date('Y-m-d', strtotime("$lastDay +7 days"));
+            $whereSql .= ' AND t.deadline BETWEEN ? AND ?';
+            $params[]  = $startRange;
+            $params[]  = $endRange;
+        } else {
+            $whereSql .= ' AND t.tahun = ?';
+            $params[]  = $tahun;
         }
 
         $stmtD = $pdo->prepare("

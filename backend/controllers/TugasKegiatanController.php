@@ -248,23 +248,23 @@ class TugasKegiatanController
         // Hitung deadline per periode
         $calcDeadline = function(array $p) use ($tahun, $jenis, $deadlineHari): ?string {
             if ($deadlineHari === null) return null;
-            $hari = str_pad($deadlineHari, 2, '0', STR_PAD_LEFT);
+            $hari = str_pad((string)$deadlineHari, 2, '0', STR_PAD_LEFT);
             switch ($jenis) {
                 case 'tahunan':
                     return "{$tahun}-12-{$hari}";
                 case 'bulanan':
                 case 'mingguan':
-                    $bl = str_pad($p['bulan'], 2, '0', STR_PAD_LEFT);
+                    $bl = str_pad((string)$p['bulan'], 2, '0', STR_PAD_LEFT);
                     // Pastikan hari valid untuk bulan tersebut
-                    $maxHari = cal_days_in_month(CAL_GREGORIAN, (int)$p['bulan'], $tahun);
-                    $hari = str_pad(min($deadlineHari, $maxHari), 2, '0', STR_PAD_LEFT);
+                    $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, (int)$p['bulan'])));
+                    $hari = str_pad((string)min($deadlineHari, $maxHari), 2, '0', STR_PAD_LEFT);
                     return "{$tahun}-{$bl}-{$hari}";
                 case 'triwulanan':
                     // TW1=Mar, TW2=Jun, TW3=Sep, TW4=Des
-                    $bulanAkhir = $p['triwulan_ke'] * 3;
-                    $bl = str_pad($bulanAkhir, 2, '0', STR_PAD_LEFT);
-                    $maxHari = cal_days_in_month(CAL_GREGORIAN, $bulanAkhir, $tahun);
-                    $hari = str_pad(min($deadlineHari, $maxHari), 2, '0', STR_PAD_LEFT);
+                    $bulanAkhir = (int)$p['triwulan_ke'] * 3;
+                    $bl = str_pad((string)$bulanAkhir, 2, '0', STR_PAD_LEFT);
+                    $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulanAkhir)));
+                    $hari = str_pad((string)min($deadlineHari, $maxHari), 2, '0', STR_PAD_LEFT);
                     return "{$tahun}-{$bl}-{$hari}";
             }
             return null;
@@ -290,27 +290,38 @@ class TugasKegiatanController
         $skipped  = 0;
         $insertedIds = [];
 
-        foreach ($periods as $p) {
-            // Cek duplikat — gunakan NULL-safe comparison
-            $stmtCheck->execute([
-                $svId, $wlId, $ptId, $kgId, $tahun,
-                $p['bulan'],       $p['bulan'],
-                $p['triwulan_ke'], $p['triwulan_ke'],
-                $p['minggu_ke'],   $p['minggu_ke'],
-            ]);
-            if ($stmtCheck->fetch()) { $skipped++; continue; }
+        try {
+            $pdo->beginTransaction();
 
-            $deadline = $calcDeadline($p);
-            $stmtInsert->execute([
-                $svId, $wlId, $ptId, $kgId, $tahun,
-                $p['triwulan_ke'], $p['bulan'], $p['minggu_ke'],
-                $target, 0,
-                $deadline,
-                $pemeriksaId,
-                $user['id'],
-            ]);
-            $insertedIds[] = (int)$pdo->lastInsertId();
-            $inserted++;
+            foreach ($periods as $p) {
+                // Cek duplikat — gunakan NULL-safe comparison
+                $stmtCheck->execute([
+                    $svId, $wlId, $ptId, $kgId, $tahun,
+                    $p['bulan'],       $p['bulan'],
+                    $p['triwulan_ke'], $p['triwulan_ke'],
+                    $p['minggu_ke'],   $p['minggu_ke'],
+                ]);
+                if ($stmtCheck->fetch()) { $skipped++; continue; }
+
+                $deadline = $calcDeadline($p);
+                $stmtInsert->execute([
+                    $svId, $wlId, $ptId, $kgId, $tahun,
+                    $p['triwulan_ke'], $p['bulan'], $p['minggu_ke'],
+                    $target, 0,
+                    $deadline,
+                    $pemeriksaId,
+                    $user['id'],
+                ]);
+                $insertedIds[] = (int)$pdo->lastInsertId();
+                $inserted++;
+            }
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            respond(false, null, 'Gagal mengalokasikan tugas tahunan: ' . $e->getMessage(), 500);
         }
 
         if ($inserted > 0) {
@@ -579,10 +590,29 @@ class TugasKegiatanController
                 $target  = max(0, (int)$row['Target Sampel']);
                 $selesai = max(0, (int)$row['Sampel Selesai']);
 
-                // Deadline
-                $deadline = $row['Deadline (YYYY-MM-DD)'];
-                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $deadline)) {
-                    throw new RuntimeException('Format deadline tidak valid. Gunakan YYYY-MM-DD.');
+                // Deadline parsing (mendukung Excel numeric date, DateTime object, dan string berbagai format)
+                $rawDeadline = $sheet->getCell('L' . $r)->getValue();
+                $deadline = null;
+
+                if (is_numeric($rawDeadline) && (float)$rawDeadline > 1000) {
+                    // Excel serial date number
+                    $deadline = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$rawDeadline)->format('Y-m-d');
+                } elseif ($rawDeadline instanceof \DateTimeInterface) {
+                    $deadline = $rawDeadline->format('Y-m-d');
+                } else {
+                    $strDeadline = trim((string)$rawDeadline);
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $strDeadline)) {
+                        $deadline = $strDeadline;
+                    } elseif (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $strDeadline, $m)) {
+                        // format d/m/Y atau d-m-Y
+                        $deadline = sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+                    } elseif ($ts = strtotime($strDeadline)) {
+                        $deadline = date('Y-m-d', $ts);
+                    }
+                }
+
+                if (!$deadline || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $deadline)) {
+                    throw new RuntimeException('Format deadline tidak valid (contoh: 2026-03-15 atau 15/03/2026).');
                 }
 
                 // Insert

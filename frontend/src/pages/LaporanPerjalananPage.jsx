@@ -9,10 +9,6 @@ function formatRupiah(n) {
   if (!n && n !== 0) return '—';
   return 'Rp ' + Number(n).toLocaleString('id-ID');
 }
-function diffDays(a, b) {
-  if (!a || !b) return null;
-  return Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000));
-}
 const STATUS_BADGE = {
   draft:    'bg-accent-orange/10 text-accent-orange dark:bg-dark-accent-orange/15 dark:text-dark-accent-orange',
   selesai:  'bg-navy/10 text-navy dark:bg-dark-navy/15 dark:text-dark-navy',

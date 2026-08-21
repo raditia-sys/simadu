@@ -4,11 +4,38 @@
  */
 class NotificationController
 {
+    /** Dapatkan atau auto-generate VAPID config */
+    private static function getOrGenerateVapidConfig(): ?array
+    {
+        $configFile = ROOT_DIR . '/config/vapid.php';
+        if (file_exists($configFile)) {
+            $cfg = require $configFile;
+            if (!empty($cfg['publicKey']) && !empty($cfg['privateKey'])) {
+                return $cfg;
+            }
+        }
+
+        require_once ROOT_DIR . '/vendor/autoload.php';
+        if (class_exists('\Minishlink\WebPush\VAPID')) {
+            try {
+                $keys = \Minishlink\WebPush\VAPID::createVapidKeys();
+                $content = "<?php\nreturn [\n    'subject'    => 'mailto:admin.simadu@bps.go.id',\n    'publicKey'  => '{$keys['publicKey']}',\n    'privateKey' => '{$keys['privateKey']}',\n];\n";
+                file_put_contents($configFile, $content);
+                return [
+                    'subject'    => 'mailto:admin.simadu@bps.go.id',
+                    'publicKey'  => $keys['publicKey'],
+                    'privateKey' => $keys['privateKey'],
+                ];
+            } catch (Throwable) {}
+        }
+        return null;
+    }
+
     /** Dapatkan Public VAPID Key untuk pendaftaran di frontend */
     public static function getVapidPublicKey(): void
     {
         requireAuth();
-        $vapidConfig = file_exists(ROOT_DIR . '/config/vapid.php') ? require ROOT_DIR . '/config/vapid.php' : null;
+        $vapidConfig = self::getOrGenerateVapidConfig();
 
         if (!$vapidConfig || empty($vapidConfig['publicKey'])) {
             respond(false, null, 'VAPID keys belum dikonfigurasi pada server.', 500);
@@ -129,14 +156,14 @@ class NotificationController
             LEFT JOIN petugas p ON p.id = t.petugas_id
             WHERE t.deadline IS NOT NULL
               AND t.sampel_selesai < t.target_sampel
-              AND DATEDIFF(t.deadline, CURDATE()) IN (0, 1, 3)
+              AND DATEDIFF(t.deadline, CURDATE()) IN (0, 1, 3, 5)
             ORDER BY t.deadline ASC
         ";
         $stmt = $pdo->query($sql);
         $tasks = $stmt->fetchAll();
 
         if (empty($tasks)) {
-            respond(true, ['notified_tasks' => 0, 'tasks' => []], 'Tidak ada tugas yang mendekati deadline (H-3, H-1, Hari H) saat ini.');
+            respond(true, ['notified_tasks' => 0, 'tasks' => []], 'Tidak ada tugas yang mendekati deadline (H-5, H-3, H-1, Hari H) saat ini.');
         }
 
         // Ambil semua subscriptions admin
@@ -157,6 +184,7 @@ class NotificationController
         foreach ($tasks as $task) {
             $sisaHari = (int)$task['sisa_hari'];
             $threshold = match ($sisaHari) {
+                5 => 'H-5',
                 3 => 'H-3',
                 1 => 'H-1',
                 0 => 'H-0',
@@ -164,9 +192,10 @@ class NotificationController
             };
 
             $labelStatus = match ($sisaHari) {
-                3 => '3 hari lagi',
+                5 => '5 hari lagi (H-5)',
+                3 => '3 hari lagi (H-3)',
                 1 => 'besok (H-1)',
-                0 => 'HARI INI',
+                0 => 'HARI INI (Hari H)',
                 default => "$sisaHari hari lagi",
             };
 
@@ -232,10 +261,8 @@ class NotificationController
     /** Helper internal kirim push menggunakan Minishlink\WebPush */
     private static function sendPushToSubscriptions(array $subscriptions, string $payload): int
     {
-        if (empty($subscriptions)) return 0;
-
-        require_once ROOT_DIR . '/vendor/autoload.php';
-        $vapidConfig = require ROOT_DIR . '/config/vapid.php';
+        $vapidConfig = self::getOrGenerateVapidConfig();
+        if (!$vapidConfig || empty($vapidConfig['publicKey'])) return 0;
 
         $auth = [
             'VAPID' => [
