@@ -5,7 +5,7 @@
  * credentials: 'include' → session cookie ikut dikirim (penting untuk auth)
  */
 
-const BASE = '/api';
+const BASE = window.location.pathname.startsWith('/simadu') ? '/simadu/api' : '/api';
 
 async function request(method, path, body) {
   const options = {

@@ -66,13 +66,15 @@ require ROOT_DIR . '/controllers/NotificationController.php';
 // require ROOT_DIR . '/vendor/autoload.php'; // jangan di-load global agar request biasa tetap ringan
 
 // ─── Request info ─────────────────────────────────────────────────────────────
-$method = $_SERVER['REQUEST_METHOD'];
-$uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$uri    = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
-// Strip base path (/backend) agar route bisa ditulis mulai dari /api/...
-$basePath = '/backend';
-if (str_starts_with($uri, $basePath)) {
-    $uri = substr($uri, strlen($basePath));
+// Strip base path (/simadu atau /backend) agar route bisa ditulis mulai dari /api/...
+if (str_starts_with($uri, '/simadu')) {
+    $uri = substr($uri, strlen('/simadu'));
+}
+if (str_starts_with($uri, '/backend')) {
+    $uri = substr($uri, strlen('/backend'));
 }
 $uri = '/' . trim($uri, '/');
 

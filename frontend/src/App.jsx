@@ -128,7 +128,9 @@ const router = createBrowserRouter([
       { path: '*', element: <NotFound /> },
     ],
   },
-]);
+], {
+  basename: window.location.pathname.startsWith('/simadu') ? '/simadu' : '/',
+});
 
 export default function App() {
   return (
