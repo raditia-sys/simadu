@@ -22,9 +22,13 @@ function respond(bool $success, mixed $data = null, string $message = '', int $c
 function requestBody(): array
 {
     $raw = file_get_contents('php://input');
-    if ($raw === '' || $raw === false) return [];
-    $decoded = json_decode($raw, true);
-    return is_array($decoded) ? $decoded : [];
+    if ($raw !== '' && $raw !== false) {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+    return !empty($_POST) ? $_POST : [];
 }
 
 // ─── Query string helper ──────────────────────────────────────────────────────

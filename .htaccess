@@ -1,0 +1,20 @@
+﻿<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /simadu/
+
+  # 1. Allow real static files (JS, CSS, images, etc.)
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+
+  # 2. Route uploads
+  RewriteRule ^uploads/(.*)$ backend/uploads/$1 [L]
+
+  # 3. Route ALL other requests (API and SPA routes) to index.php
+  RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options nosniff
+  Header always set X-Frame-Options SAMEORIGIN
+  Header always set X-XSS-Protection "1; mode=block"
+</IfModule>

@@ -26,16 +26,15 @@ session_start([
     'use_strict_mode' => true,
 ]);
 
-// ─── CORS — development only ──────────────────────────────────────────────────
-$allowedOrigins = ['http://localhost:5173'];
+// ─── CORS ─────────────────────────────────────────────────────────────────────
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowedOrigins, true)) {
+if ($origin !== '') {
     header("Access-Control-Allow-Origin: $origin");
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
+    header('Access-Control-Allow-Headers: Content-Type, X-Requested-With, Authorization');
 }
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
@@ -69,7 +68,8 @@ require ROOT_DIR . '/controllers/NotificationController.php';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $uri    = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
-// Strip base path (/simadu atau /backend) agar route bisa ditulis mulai dari /api/...
+// Strip base path (/simadu atau /backend atau /index.php) agar route bisa ditulis mulai dari /api/...
+$uri = str_replace('/index.php', '', $uri);
 if (str_starts_with($uri, '/simadu')) {
     $uri = substr($uri, strlen('/simadu'));
 }

@@ -14,23 +14,27 @@ SET time_zone = '+07:00';
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `petugas_id` int unsigned DEFAULT NULL,
   `nama` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `plain_password` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT 'bps1504',
   `role` enum('superadmin','admin') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'admin',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_users_username` (`username`)
+  UNIQUE KEY `uq_users_username` (`username`),
+  KEY `fk_users_petugas` (`petugas_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Akun login aplikasi SIMADU (superadmin & admin)';
 
 -- Dumping data for table `users` (5 rows)
-INSERT INTO `users` (`id`, `nama`, `username`, `password_hash`, `role`, `created_at`, `updated_at`) VALUES
-('1', 'Super Administrator', 'superadmin', '$2y$12$xXtRZ3Qy8SZPM7DPiQD2d.qYMP41fU3OTPQRLTDtGiiArsYpg9OiW', 'superadmin', '2026-08-16 23:27:22', '2026-08-17 16:16:00'),
-('2', 'Administrator', 'admin', '$2y$12$xXtRZ3Qy8SZPM7DPiQD2d.qYMP41fU3OTPQRLTDtGiiArsYpg9OiW', 'admin', '2026-08-16 23:27:22', '2026-08-17 16:16:00'),
-('3', 'Rina Agustina', 'rina', '$2y$10$favYA6oLEx03Rl7b7DKM2uhRWZakN2dKOIJzed2fQje3TkZ8Px/LW', 'admin', '2026-08-20 22:19:33', '2026-08-20 22:19:33'),
-('4', 'Imelda Salsabila', 'imelda', '$2y$10$wPE8ZBPTJioAay4KfDrcOONnMDf9uRmtp5G/Gfahk3B4ZS.EGOmry', 'admin', '2026-08-20 22:19:33', '2026-08-20 22:19:33'),
-('5', 'Alief Raditia Ali', 'alief', '$2y$10$1bdmxhySIrN.XoAtFKPiFO4agsD40Yth4Kp6dEPItzlp6LsXSShN6', 'admin', '2026-08-20 22:19:33', '2026-08-20 22:19:33');
+INSERT INTO `users` (`id`, `petugas_id`, `nama`, `username`, `email`, `password_hash`, `plain_password`, `role`, `created_at`, `updated_at`) VALUES
+('1', NULL, 'Super Administrator', 'superadmin', NULL, '$2y$12$xXtRZ3Qy8SZPM7DPiQD2d.qYMP41fU3OTPQRLTDtGiiArsYpg9OiW', 'bps1504', 'superadmin', '2026-08-16 23:27:22', '2026-08-23 04:35:47'),
+('2', NULL, 'Administrator', 'admin', NULL, '$2y$12$xXtRZ3Qy8SZPM7DPiQD2d.qYMP41fU3OTPQRLTDtGiiArsYpg9OiW', 'bps1504', 'admin', '2026-08-16 23:27:22', '2026-08-23 04:35:47'),
+('3', 8, 'Rina Agustina', 'rina', 'rinagus@bps.go.id', '$2y$10$favYA6oLEx03Rl7b7DKM2uhRWZakN2dKOIJzed2fQje3TkZ8Px/LW', 'bps1504', 'admin', '2026-08-20 22:19:33', '2026-08-23 04:35:47'),
+('4', 18, 'Imelda Salsabila', 'imelda', 'imelda.salsabila@bps.go.id', '$2y$10$wPE8ZBPTJioAay4KfDrcOONnMDf9uRmtp5G/Gfahk3B4ZS.EGOmry', 'bps1504', 'admin', '2026-08-20 22:19:33', '2026-08-23 04:35:47'),
+('5', 11, 'Alief Raditia Ali', 'alief', 'raditia.ali@bps.go.id', '$2y$10$1bdmxhySIrN.XoAtFKPiFO4agsD40Yth4Kp6dEPItzlp6LsXSShN6', 'bps1504', 'admin', '2026-08-20 22:19:33', '2026-08-23 04:35:47');
 
 -- --------------------------------------------------------
 -- Table structure for table `master_wilayah`
