@@ -180,6 +180,166 @@ class LaporanPerjalananController
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // BATCH STORE — Buat beberapa draft laporan dinas sekaligus
+    // ─────────────────────────────────────────────────────────────────────────
+    public static function batchStore(): void
+    {
+        requireAuth();
+        $pdo  = Database::connect();
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $items = !empty($body['items']) && is_array($body['items']) ? $body['items'] : [];
+
+        if (empty($items)) {
+            respond(false, null, 'Daftar antrean laporan tidak boleh kosong.', 422);
+        }
+
+        $userId = $_SESSION['user']['id'] ?? null;
+        $createdIds = [];
+
+        // Cache master wilayah
+        $wilayahCache = [];
+        $stmtW = $pdo->prepare('SELECT id, kecamatan, desa_kelurahan, rate_transport_lokal FROM master_wilayah WHERE id = ?');
+
+        // Statements
+        $stmtInsert = $pdo->prepare("
+            INSERT INTO laporan_perjalanan_dinas
+                (petugas_id, nomor_surat, tanggal_surat_tugas, tanggal_tugas, tujuan_wilayah_id, survei_id,
+                 tanggal_berangkat, tanggal_kembali, maksud_perjalanan, biaya_transport,
+                 status_pengisian, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, NOW())
+        ");
+
+        $stmtRundown = $pdo->prepare("
+            INSERT INTO laporan_perjalanan_dinas_rundown
+                (laporan_id, urutan, hari_tanggal, waktu_mulai, waktu_selesai, kegiatan, lokasi, deskripsi)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        try {
+            $pdo->beginTransaction();
+
+            foreach ($items as $idx => $item) {
+                $tglTugas = $item['tanggal_tugas'] ?? $item['tanggal_berangkat'] ?? date('Y-m-d');
+                $wId = (int)($item['tujuan_wilayah_id'] ?? 0);
+
+                if (!isset($wilayahCache[$wId])) {
+                    $stmtW->execute([$wId]);
+                    $wRow = $stmtW->fetch();
+                    $wilayahCache[$wId] = $wRow;
+                }
+                $wilayah = $wilayahCache[$wId];
+
+                $biaya = isset($item['biaya_transport']) && $item['biaya_transport'] !== ''
+                    ? (float)$item['biaya_transport']
+                    : ($wilayah['rate_transport_lokal'] ?? 0);
+
+                $stmtInsert->execute([
+                    (int)($item['petugas_id'] ?? 0),
+                    trim($item['nomor_surat'] ?? ''),
+                    $item['tanggal_surat_tugas'] ?? null,
+                    $tglTugas,
+                    $wId,
+                    !empty($item['survei_id']) ? (int)$item['survei_id'] : null,
+                    $tglTugas,
+                    $tglTugas,
+                    trim($item['maksud_perjalanan'] ?? ''),
+                    $biaya,
+                    $userId,
+                ]);
+                $newId = (int)$pdo->lastInsertId();
+                $createdIds[] = $newId;
+
+                // Auto-generate template 4 kegiatan rundown resmi BPS
+                $kec = $wilayah['kecamatan'] ?? 'Kecamatan Tujuan';
+                $defaultRundowns = [
+                    [1, $tglTugas, '07:30', '08:00', 'Persiapan Turun Lapangan', 'BPS Kab. Batang Hari', ''],
+                    [2, $tglTugas, '08:00', '09:30', "Perjalanan dari BPS Kabupaten Batang Hari Menuju Kecamatan {$kec}", "Kecamatan {$kec}", ''],
+                    [3, $tglTugas, '09:30', '15:30', 'Turun Lapangan', "Kecamatan {$kec}", ''],
+                    [4, $tglTugas, '15:30', '16:30', 'Perjalanan kembali ke Muara Bulian, Kab. Batang Hari', 'BPS Kab. Batang Hari', ''],
+                ];
+
+                foreach ($defaultRundowns as $rd) {
+                    $stmtRundown->execute([
+                        $newId, $rd[0], $rd[1], $rd[2], $rd[3], $rd[4], $rd[5], $rd[6]
+                    ]);
+                }
+            }
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            respond(false, null, 'Gagal membuat batch laporan perjalanan: ' . $e->getMessage(), 500);
+        }
+
+        $count = count($createdIds);
+        logActivity($pdo, $userId, 'create_perjalanan_batch', 'laporan_perjalanan_dinas', null, "{$count} draft laporan perjalanan dibuat secara batch");
+
+        respond(true, ['inserted' => $count, 'ids' => $createdIds], "{$count} draft laporan perjalanan berhasil dibuat.", 201);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DUPLICATE — Salin laporan yang sudah ada
+    // ─────────────────────────────────────────────────────────────────────────
+    public static function duplicate(int $id): void
+    {
+        requireAuth();
+        $pdo = Database::connect();
+        $source = self::findOrFail($pdo, $id);
+        $userId = $_SESSION['user']['id'] ?? null;
+
+        $stmt = $pdo->prepare("
+            INSERT INTO laporan_perjalanan_dinas
+                (petugas_id, nomor_surat, tanggal_surat_tugas, tanggal_tugas, tujuan_wilayah_id, survei_id,
+                 tanggal_berangkat, tanggal_kembali, maksud_perjalanan, biaya_transport,
+                 status_pengisian, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, NOW())
+        ");
+        $stmt->execute([
+            $source['petugas_id'],
+            $source['nomor_surat'],
+            $source['tanggal_surat_tugas'],
+            $source['tanggal_tugas'] ?? $source['tanggal_berangkat'],
+            $source['tujuan_wilayah_id'],
+            $source['survei_id'],
+            $source['tanggal_berangkat'],
+            $source['tanggal_kembali'],
+            $source['maksud_perjalanan'],
+            $source['biaya_transport'],
+            $userId,
+        ]);
+        $newId = (int)$pdo->lastInsertId();
+
+        // Copy rundown
+        $stmtR = $pdo->prepare('SELECT * FROM laporan_perjalanan_dinas_rundown WHERE laporan_id = ? ORDER BY urutan ASC, id ASC');
+        $stmtR->execute([$id]);
+        $rundowns = $stmtR->fetchAll();
+
+        $stmtInsertR = $pdo->prepare("
+            INSERT INTO laporan_perjalanan_dinas_rundown
+                (laporan_id, urutan, hari_tanggal, waktu_mulai, waktu_selesai, kegiatan, lokasi, deskripsi)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        foreach ($rundowns as $r) {
+            $stmtInsertR->execute([
+                $newId,
+                $r['urutan'],
+                $r['hari_tanggal'],
+                $r['waktu_mulai'],
+                $r['waktu_selesai'],
+                $r['kegiatan'],
+                $r['lokasi'],
+                $r['deskripsi'],
+            ]);
+        }
+
+        logActivity($pdo, $userId, 'duplicate_perjalanan', 'laporan_perjalanan_dinas', $newId, "Duplikat dari laporan #{$id}");
+
+        self::detail($newId);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // UPDATE — Tahap 1: edit data perjalanan
     // ─────────────────────────────────────────────────────────────────────────
     public static function update(int $id): void

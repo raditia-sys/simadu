@@ -209,11 +209,17 @@ class SurveiStatistikController
         $stmt = $pdo->prepare("
             SELECT
                 t.id,
+                t.survei_id,
+                t.wilayah_id,
+                t.petugas_id,
+                t.kegiatan_id,
+                t.pemeriksa_id,
                 p.nama  AS nama_petugas,
                 p.tipe  AS tipe_petugas,
                 mk.nama AS nama_peran,
                 COALESCE(mw.kecamatan, 'Lintas Wilayah') AS kecamatan,
                 COALESCE(mw.desa_kelurahan, 'Seluruh Wilayah') AS desa_kelurahan,
+                mw.kecamatan AS wilayah_kecamatan,
                 t.tahun, t.bulan, t.triwulan_ke, t.minggu_ke,
                 t.target_sampel, t.sampel_selesai, t.deadline,
                 ms.jenis_periode,

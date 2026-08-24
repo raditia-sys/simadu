@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import RadialProgress from '../components/ui/RadialProgress';
 import ProgressRingGrid from '../components/survei/ProgressRingGrid';
 import Pagination from '../components/ui/Pagination';
+import TugasForm from '../components/TugasForm';
 
 const KATEGORI_BADGE = {
   Distribusi: 'bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy',
@@ -34,6 +35,8 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   const today = new Date();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isSuperadmin = user?.role === 'superadmin';
+  const canEdit = user?.role === 'superadmin' || user?.role === 'admin';
 
   // ── Survei info ────────────────────────────────────────────────────────────
   const [survei,       setSurvei]       = useState(null);
@@ -57,6 +60,11 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   const [petugasPerPage, setPetugasPerPage] = useState(10);
   const [petugasSearch,  setPetugasSearch]  = useState('');
 
+  // ── Modal & Toast ─────────────────────────────────────────────────────────
+  const [tugasModal, setTugasModal] = useState({ open: false, mode: 'edit-selesai', row: null });
+  const [toast, setToast] = useState('');
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
+
   // ── Dokumen ───────────────────────────────────────────────────────────────
   const [dokumen, setDokumen] = useState([]);
 
@@ -64,12 +72,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   const [tab, setTab] = useState('progress'); // 'progress' | 'petugas' | 'dokumen'
 
   // ── Load survei info ───────────────────────────────────────────────────────
-  useEffect(() => {
-    setSurveiLoading(true);
-    setSurvei(null);
-    setProgressData({ by_kecamatan: [], by_desa: [] });
-    setPetugasData([]);
-
+  const loadSurveiInfo = useCallback(() => {
     const params = new URLSearchParams();
     if (surveiNama) params.set('nama', surveiNama);
     if (kodeSurvei) params.set('kode', kodeSurvei);
@@ -82,10 +85,18 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
       }
       setSurveiLoading(false);
     });
+  }, [surveiNama, kodeSurvei]);
+
+  useEffect(() => {
+    setSurveiLoading(true);
+    setSurvei(null);
+    setProgressData({ by_kecamatan: [], by_desa: [] });
+    setPetugasData([]);
+    loadSurveiInfo();
     api.get('/dashboard/years').then((res) => {
       if (res.success) setYears(res.data);
     });
-  }, [surveiNama, kodeSurvei]);
+  }, [loadSurveiInfo]);
 
   // ── Build filter QS ───────────────────────────────────────────────────────
   const filterQs = useCallback((extra = {}) => {
@@ -95,7 +106,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   }, [survei, tahun, bulan, tw]);
 
   // ── Load progress ──────────────────────────────────────────────────────────
-  useEffect(() => {
+  const loadProgress = useCallback(() => {
     if (!survei) return;
     setProgLoading(true);
     setDrillKec(null);
@@ -105,15 +116,25 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     });
   }, [survei, filterQs]);
 
-  // ── Load petugas (lazy) ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!survei || tab !== 'petugas') return;
+    loadProgress();
+  }, [loadProgress]);
+
+  // ── Load petugas (lazy) ───────────────────────────────────────────────────
+  const loadPetugas = useCallback(() => {
+    if (!survei) return;
     setPetugasLoading(true);
     api.get('/survei-statistik/petugas' + filterQs(drillKec ? { kecamatan: drillKec } : {})).then((res) => {
       if (res.success) setPetugasData(res.data);
       setPetugasLoading(false);
     });
-  }, [survei, tab, filterQs, drillKec]);
+  }, [survei, filterQs, drillKec]);
+
+  useEffect(() => {
+    if (tab === 'petugas') {
+      loadPetugas();
+    }
+  }, [tab, loadPetugas]);
 
   // ── Load dokumen (lazy) ───────────────────────────────────────────────────
   useEffect(() => {
@@ -381,8 +402,8 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-navy/4 dark:bg-dark-navy/8">
-                        {['Petugas','Tipe','Peran','Wilayah','Periode','Target','Selesai','Progres','Deadline'].map((h) => (
-                          <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide whitespace-nowrap">
+                        {['Petugas','Tipe','Peran','Wilayah','Periode','Target','Selesai','Progres','Deadline', ...(canEdit ? ['Aksi'] : [])].map((h) => (
+                          <th key={h} className={`px-4 py-2.5 text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide whitespace-nowrap ${h === 'Aksi' ? 'text-right' : 'text-left'}`}>
                             {h}
                           </th>
                         ))}
@@ -392,7 +413,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                       {petugasLoading ? (
                         Array.from({ length: 5 }).map((_, i) => (
                           <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft">
-                            {Array.from({ length: 9 }).map((_, j) => (
+                            {Array.from({ length: canEdit ? 10 : 9 }).map((_, j) => (
                               <td key={j} className="px-4 py-3">
                                 <div className="h-3 rounded-full bg-status-neutral/15 animate-pulse" style={{ width: `${40 + j * 7}%` }} />
                               </td>
@@ -401,7 +422,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                         ))
                       ) : paginatedPetugas.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">
+                          <td colSpan={canEdit ? 10 : 9} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">
                             Belum ada petugas terdaftar untuk survei ini pada periode tersebut.
                           </td>
                         </tr>
@@ -440,7 +461,20 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                                 {row.target_sampel}
                               </td>
                               <td className="px-4 py-3 text-right font-mono tabular-nums text-text-primary dark:text-dark-text-primary">
-                                {row.sampel_selesai}
+                                {canEdit ? (
+                                  <button
+                                    onClick={() => setTugasModal({
+                                      open: true,
+                                      mode: isSuperadmin ? 'edit' : 'edit-selesai',
+                                      row,
+                                    })}
+                                    title="Klik untuk ubah progres"
+                                    className="px-2 py-0.5 rounded-lg hover:bg-navy/8 dark:hover:bg-dark-navy/15 hover:text-navy dark:hover:text-dark-navy font-semibold transition-colors">
+                                    {row.sampel_selesai}
+                                  </button>
+                                ) : (
+                                  row.sampel_selesai
+                                )}
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <div className="flex items-center justify-center gap-2">
@@ -456,6 +490,23 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                               <td className={`px-4 py-3 text-xs font-mono whitespace-nowrap ${isLate ? 'text-accent-orange dark:text-dark-accent-orange font-semibold' : 'text-text-secondary dark:text-dark-text-secondary'}`}>
                                 {isLate && '⚠ '}{row.deadline || '—'}
                               </td>
+                              {canEdit && (
+                                <td className="px-4 py-3 text-right whitespace-nowrap">
+                                  <button
+                                    onClick={() => setTugasModal({
+                                      open: true,
+                                      mode: isSuperadmin ? 'edit' : 'edit-selesai',
+                                      row,
+                                    })}
+                                    title="Update Progres Tugas"
+                                    className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                                    </svg>
+                                  </button>
+                                </td>
+                              )}
                             </tr>
                           );
                         })
@@ -500,7 +551,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
-                    Buka Link
+                    Buka Tautan
                   </a>
                 </div>
               )}
@@ -537,10 +588,10 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
               {/* Materi dari field materi_dokumen */}
               {survei.materi_dokumen && (
                 <div>
-                  <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-2">
-                    Materi Kegiatan
+                  <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-2 flex items-center gap-2">
+                    <span>📖</span> Panduan & Materi Teknis
                   </h3>
-                  <div className="prose prose-sm max-w-none text-text-secondary dark:text-dark-text-secondary whitespace-pre-wrap text-sm p-4 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page">
+                  <div className="p-4 rounded-2xl border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface text-sm text-text-primary dark:text-dark-text-primary leading-relaxed whitespace-pre-line">
                     {survei.materi_dokumen}
                   </div>
                 </div>
@@ -587,6 +638,28 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
             </div>
           )}
         </>
+      )}
+
+      {/* ── Toast ───────────────────────────────────────────────────────────── */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg">
+          {toast}
+        </div>
+      )}
+
+      {/* ── Modal Update Progres / Edit Tugas ────────────────────────────────── */}
+      {tugasModal.open && (
+        <TugasForm
+          mode={tugasModal.mode}
+          initialData={tugasModal.row}
+          onClose={() => setTugasModal({ open: false, mode: 'edit-selesai', row: null })}
+          onSaved={() => {
+            showToast('Progres tugas berhasil diperbarui.');
+            loadPetugas();
+            loadProgress();
+            loadSurveiInfo();
+          }}
+        />
       )}
     </div>
   );

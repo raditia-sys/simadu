@@ -170,7 +170,9 @@ $routes = [
     // Static routes HARUS sebelum dynamic {id}
     'GET /api/perjalanan'                        => [LaporanPerjalananController::class, 'index'],
     'POST /api/perjalanan'                       => [LaporanPerjalananController::class, 'store'],
+    'POST /api/perjalanan/batch'                 => [LaporanPerjalananController::class, 'batchStore'],
     'GET /api/perjalanan/{id}/detail'            => [LaporanPerjalananController::class, 'detail'],
+    'POST /api/perjalanan/{id}/duplicate'        => [LaporanPerjalananController::class, 'duplicate'],
     'PUT /api/perjalanan/{id}'                   => [LaporanPerjalananController::class, 'update'],
     'DELETE /api/perjalanan/{id}'                => [LaporanPerjalananController::class, 'delete'],
     'PUT /api/perjalanan/{id}/rundown'           => [LaporanPerjalananController::class, 'saveRundown'],

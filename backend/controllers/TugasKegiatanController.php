@@ -193,135 +193,70 @@ class TugasKegiatanController
     {
         $user = requireRole('superadmin');
         $body = requestBody();
-        validateRequired($body, [
-            'survei_id'    => 'Survei',
-            'petugas_id'   => 'Petugas',
-            'kegiatan_id'  => 'Peran Kegiatan',
-            'tahun'        => 'Tahun',
-            'target_sampel'=> 'Target Sampel',
-        ]);
+        $pdo  = Database::connect();
 
-        $pdo    = Database::connect();
-        $tahun  = (int)$body['tahun'];
-        $svId   = (int)$body['survei_id'];
-        $wlId   = !empty($body['wilayah_id']) ? (int)$body['wilayah_id'] : null;
-        $ptId   = (int)$body['petugas_id'];
-        $kgId   = (int)$body['kegiatan_id'];
-        $target = (int)$body['target_sampel'];
+        $items = !empty($body['items']) && is_array($body['items']) ? $body['items'] : [$body];
+        $force = !empty($body['force']);
+        $requireConfirmItems = [];
 
-        // Ambil data survei
-        $stmtS = $pdo->prepare('SELECT jenis_periode, bulan_mulai, bulan_selesai, deadline_hari, deadline_hari_mg2 FROM master_survei WHERE id = ?');
-        $stmtS->execute([$svId]);
-        $survei = $stmtS->fetch();
-        if (!$survei) respond(false, null, 'Survei tidak ditemukan.', 404);
+        // First pass: validasi dan cek duplikasi jika !force
+        foreach ($items as $idx => $item) {
+            validateRequired($item, [
+                'survei_id'    => 'Survei',
+                'petugas_id'   => 'Petugas',
+                'kegiatan_id'  => 'Peran Kegiatan',
+                'tahun'        => 'Tahun',
+                'target_sampel'=> 'Target Sampel',
+            ]);
 
-        $jenis           = $survei['jenis_periode'];
-        $bulanSelesai    = !empty($survei['bulan_selesai']) ? (int)$survei['bulan_selesai'] : 12;
-        $deadlineHari    = $survei['deadline_hari'] ? (int)$survei['deadline_hari'] : null;
-        $deadlineHariMg2 = !empty($survei['deadline_hari_mg2']) ? (int)$survei['deadline_hari_mg2'] : null;
+            if (!$force) {
+                $svId  = (int)$item['survei_id'];
+                $wlId  = !empty($item['wilayah_id']) ? (int)$item['wilayah_id'] : null;
+                $ptId  = (int)$item['petugas_id'];
+                $kgId  = (int)$item['kegiatan_id'];
+                $tahun = (int)$item['tahun'];
 
-        // Validasi pemeriksa
-        $pemeriksaId = null;
-        if (!empty($body['pemeriksa_id'])) {
-            $stmtP = $pdo->prepare("SELECT id FROM petugas WHERE id = ? AND tipe = 'pegawai'");
-            $stmtP->execute([(int)$body['pemeriksa_id']]);
-            if (!$stmtP->fetch()) respond(false, null, 'Pemeriksa harus bertipe pegawai.', 422);
-            $pemeriksaId = (int)$body['pemeriksa_id'];
-        }
+                $stmtExisting = $pdo->prepare('
+                    SELECT COUNT(*) AS total_existing, 
+                           GROUP_CONCAT(DISTINCT COALESCE(p2.nama, "Tanpa Pemeriksa") SEPARATOR ", ") AS existing_pemeriksa,
+                           p.nama AS nama_petugas
+                    FROM tugas_kegiatan t
+                    JOIN petugas p ON p.id = t.petugas_id
+                    LEFT JOIN petugas p2 ON p2.id = t.pemeriksa_id
+                    WHERE t.survei_id = ? AND t.wilayah_id <=> ? AND t.petugas_id = ? AND t.kegiatan_id = ? AND t.tahun = ?
+                ');
+                $stmtExisting->execute([$svId, $wlId, $ptId, $kgId, $tahun]);
+                $existingInfo = $stmtExisting->fetch();
+                $totalExisting = (int)($existingInfo['total_existing'] ?? 0);
 
-        // Buat daftar periode yang akan di-generate
-        $periods = [];
-        switch ($jenis) {
-            case 'tahunan':
-                $periods[] = ['bulan' => null, 'triwulan_ke' => null, 'minggu_ke' => null];
-                break;
-            case 'bulanan':
-                for ($b = 1; $b <= 12; $b++) {
-                    $periods[] = ['bulan' => $b, 'triwulan_ke' => null, 'minggu_ke' => null];
-                }
-                break;
-            case 'triwulanan':
-                for ($tw = 1; $tw <= 4; $tw++) {
-                    $periods[] = ['bulan' => null, 'triwulan_ke' => $tw, 'minggu_ke' => null];
-                }
-                break;
-            case 'mingguan':
-                for ($b = 1; $b <= 12; $b++) {
-                    for ($mg = 1; $mg <= 2; $mg++) {
-                        $periods[] = ['bulan' => $b, 'triwulan_ke' => null, 'minggu_ke' => $mg];
-                    }
-                }
-                break;
-        }
-
-        // Hitung deadline per periode (selalu hasilkan tanggal valid meskipun deadlineHari null di master)
-        $calcDeadline = function(array $p) use ($tahun, $jenis, $bulanSelesai, $deadlineHari, $deadlineHariMg2): string {
-            switch ($jenis) {
-                case 'tahunan': {
-                    $bl = str_pad((string)$bulanSelesai, 2, '0', STR_PAD_LEFT);
-                    $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulanSelesai)));
-                    $d = $deadlineHari ? min((int)$deadlineHari, $maxHari) : $maxHari;
-                    $hari = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
-                    return "{$tahun}-{$bl}-{$hari}";
-                }
-                case 'bulanan': {
-                    $bulan = (int)($p['bulan'] ?? 1);
-                    $bl = str_pad((string)$bulan, 2, '0', STR_PAD_LEFT);
-                    $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulan)));
-                    $d = $deadlineHari ? min((int)$deadlineHari, $maxHari) : $maxHari;
-                    $hari = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
-                    return "{$tahun}-{$bl}-{$hari}";
-                }
-                case 'mingguan': {
-                    $bulan = (int)($p['bulan'] ?? 1);
-                    $bl = str_pad((string)$bulan, 2, '0', STR_PAD_LEFT);
-                    $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulan)));
-                    $isMg2 = ((int)($p['minggu_ke'] ?? 1)) === 2;
-                    $dl = ($isMg2 && $deadlineHariMg2) ? $deadlineHariMg2 : $deadlineHari;
-                    $d = $dl ? min((int)$dl, $maxHari) : $maxHari;
-                    $hari = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
-                    return "{$tahun}-{$bl}-{$hari}";
-                }
-                case 'triwulanan': {
-                    // TW1=Mar, TW2=Jun, TW3=Sep, TW4=Des
-                    $bulanAkhir = ((int)($p['triwulan_ke'] ?? 1)) * 3;
-                    $bl = str_pad((string)$bulanAkhir, 2, '0', STR_PAD_LEFT);
-                    $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulanAkhir)));
-                    $d = $deadlineHari ? min((int)$deadlineHari, $maxHari) : $maxHari;
-                    $hari = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
-                    return "{$tahun}-{$bl}-{$hari}";
-                }
-                default: {
-                    return "{$tahun}-12-31";
+                if ($totalExisting > 0) {
+                    $requireConfirmItems[] = [
+                        'item_index'        => $idx,
+                        'existing_count'    => $totalExisting,
+                        'nama_petugas'      => $existingInfo['nama_petugas'] ?? 'Petugas',
+                        'existing_pemeriksa'=> $existingInfo['existing_pemeriksa'] ?: 'Belum ditentukan',
+                    ];
                 }
             }
-        };
+        }
 
-        $force = !empty($body['force']);
-
-        // Cek apakah sudah ada tugas sebelumnya untuk kombinasi survei, wilayah, petugas, peran, dan tahun
-        $stmtExisting = $pdo->prepare('
-            SELECT COUNT(*) AS total_existing, 
-                   GROUP_CONCAT(DISTINCT COALESCE(p2.nama, "Tanpa Pemeriksa") SEPARATOR ", ") AS existing_pemeriksa
-            FROM tugas_kegiatan t
-            LEFT JOIN petugas p2 ON p2.id = t.pemeriksa_id
-            WHERE t.survei_id = ? AND t.wilayah_id <=> ? AND t.petugas_id = ? AND t.kegiatan_id = ? AND t.tahun = ?
-        ');
-        $stmtExisting->execute([$svId, $wlId, $ptId, $kgId, $tahun]);
-        $existingInfo = $stmtExisting->fetch();
-        $totalExisting = (int)($existingInfo['total_existing'] ?? 0);
-
-        // Jika belum ada force flag dan terdeteksi tugas sebelumnya, minta konfirmasi frontend
-        if (!$force && $totalExisting > 0) {
+        if (!$force && !empty($requireConfirmItems)) {
+            $totalCount = array_sum(array_column($requireConfirmItems, 'existing_count'));
+            $names = implode(', ', array_unique(array_column($requireConfirmItems, 'nama_petugas')));
             respond(true, [
                 'require_confirm'   => true,
-                'existing_count'    => $totalExisting,
-                'existing_pemeriksa'=> $existingInfo['existing_pemeriksa'] ?: 'Belum ditentukan',
-                'message'           => "Petugas ini sudah memiliki {$totalExisting} tugas pada survei, wilayah, dan tahun ini.",
+                'existing_count'    => $totalCount,
+                'existing_items'    => $requireConfirmItems,
+                'existing_pemeriksa'=> $requireConfirmItems[0]['existing_pemeriksa'] ?? 'Belum ditentukan',
+                'message'           => "Terdeteksi {$totalCount} tugas sebelumnya untuk {$names}.",
             ]);
         }
 
-        // Prepare INSERT & duplicate check statements (gunakan NULL-safe operator <=> MariaDB)
+        // Cache master survei
+        $surveiCache = [];
+        $stmtS = $pdo->prepare('SELECT jenis_periode, bulan_mulai, bulan_selesai, deadline_hari, deadline_hari_mg2 FROM master_survei WHERE id = ?');
+
+        // Statements
         $stmtCheck = $pdo->prepare(
             'SELECT id FROM tugas_kegiatan
              WHERE survei_id=? AND wilayah_id <=> ? AND petugas_id=? AND kegiatan_id=? AND tahun=?
@@ -345,30 +280,121 @@ class TugasKegiatanController
         try {
             $pdo->beginTransaction();
 
-            foreach ($periods as $p) {
-                if (!$force) {
-                    // Cek duplikat identik (termasuk pemeriksa_id)
-                    $stmtCheck->execute([
-                        $svId, $wlId, $ptId, $kgId, $tahun,
-                        $pemeriksaId,
-                        $p['bulan'],
-                        $p['triwulan_ke'],
-                        $p['minggu_ke'],
-                    ]);
-                    if ($stmtCheck->fetch()) { $skipped++; continue; }
+            foreach ($items as $item) {
+                $svId   = (int)$item['survei_id'];
+                $wlId   = !empty($item['wilayah_id']) ? (int)$item['wilayah_id'] : null;
+                $ptId   = (int)$item['petugas_id'];
+                $kgId   = (int)$item['kegiatan_id'];
+                $tahun  = (int)$item['tahun'];
+                $target = (int)$item['target_sampel'];
+
+                if (!isset($surveiCache[$svId])) {
+                    $stmtS->execute([$svId]);
+                    $sRow = $stmtS->fetch();
+                    if (!$sRow) respond(false, null, "Survei ID {$svId} tidak ditemukan.", 404);
+                    $surveiCache[$svId] = $sRow;
+                }
+                $survei = $surveiCache[$svId];
+
+                $jenis           = $survei['jenis_periode'];
+                $bulanSelesai    = !empty($survei['bulan_selesai']) ? (int)$survei['bulan_selesai'] : 12;
+                $deadlineHari    = $survei['deadline_hari'] ? (int)$survei['deadline_hari'] : null;
+                $deadlineHariMg2 = !empty($survei['deadline_hari_mg2']) ? (int)$survei['deadline_hari_mg2'] : null;
+
+                $pemeriksaId = null;
+                if (!empty($item['pemeriksa_id'])) {
+                    $pemeriksaId = (int)$item['pemeriksa_id'];
                 }
 
-                $deadline = $calcDeadline($p);
-                $stmtInsert->execute([
-                    $svId, $wlId, $ptId, $kgId, $tahun,
-                    $p['triwulan_ke'], $p['bulan'], $p['minggu_ke'],
-                    $target, 0,
-                    $deadline,
-                    $pemeriksaId,
-                    $user['id'],
-                ]);
-                $insertedIds[] = (int)$pdo->lastInsertId();
-                $inserted++;
+                $periods = [];
+                switch ($jenis) {
+                    case 'tahunan':
+                        $periods[] = ['bulan' => null, 'triwulan_ke' => null, 'minggu_ke' => null];
+                        break;
+                    case 'bulanan':
+                        for ($b = 1; $b <= 12; $b++) {
+                            $periods[] = ['bulan' => $b, 'triwulan_ke' => null, 'minggu_ke' => null];
+                        }
+                        break;
+                    case 'triwulanan':
+                        for ($tw = 1; $tw <= 4; $tw++) {
+                            $periods[] = ['bulan' => null, 'triwulan_ke' => $tw, 'minggu_ke' => null];
+                        }
+                        break;
+                    case 'mingguan':
+                        for ($b = 1; $b <= 12; $b++) {
+                            for ($mg = 1; $mg <= 2; $mg++) {
+                                $periods[] = ['bulan' => $b, 'triwulan_ke' => null, 'minggu_ke' => $mg];
+                            }
+                        }
+                        break;
+                }
+
+                $calcDeadline = function(array $p) use ($tahun, $jenis, $bulanSelesai, $deadlineHari, $deadlineHariMg2): string {
+                    switch ($jenis) {
+                        case 'tahunan': {
+                            $bl = str_pad((string)$bulanSelesai, 2, '0', STR_PAD_LEFT);
+                            $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulanSelesai)));
+                            $d = $deadlineHari ? min((int)$deadlineHari, $maxHari) : $maxHari;
+                            $hari = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
+                            return "{$tahun}-{$bl}-{$hari}";
+                        }
+                        case 'bulanan': {
+                            $bulan = (int)($p['bulan'] ?? 1);
+                            $bl = str_pad((string)$bulan, 2, '0', STR_PAD_LEFT);
+                            $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulan)));
+                            $d = $deadlineHari ? min((int)$deadlineHari, $maxHari) : $maxHari;
+                            $hari = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
+                            return "{$tahun}-{$bl}-{$hari}";
+                        }
+                        case 'mingguan': {
+                            $bulan = (int)($p['bulan'] ?? 1);
+                            $bl = str_pad((string)$bulan, 2, '0', STR_PAD_LEFT);
+                            $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulan)));
+                            $isMg2 = ((int)($p['minggu_ke'] ?? 1)) === 2;
+                            $dl = ($isMg2 && $deadlineHariMg2) ? $deadlineHariMg2 : $deadlineHari;
+                            $d = $dl ? min((int)$dl, $maxHari) : $maxHari;
+                            $hari = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
+                            return "{$tahun}-{$bl}-{$hari}";
+                        }
+                        case 'triwulanan': {
+                            $bulanAkhir = ((int)($p['triwulan_ke'] ?? 1)) * 3;
+                            $bl = str_pad((string)$bulanAkhir, 2, '0', STR_PAD_LEFT);
+                            $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulanAkhir)));
+                            $d = $deadlineHari ? min((int)$deadlineHari, $maxHari) : $maxHari;
+                            $hari = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
+                            return "{$tahun}-{$bl}-{$hari}";
+                        }
+                        default: {
+                            return "{$tahun}-12-31";
+                        }
+                    }
+                };
+
+                foreach ($periods as $p) {
+                    if (!$force) {
+                        $stmtCheck->execute([
+                            $svId, $wlId, $ptId, $kgId, $tahun,
+                            $pemeriksaId,
+                            $p['bulan'],
+                            $p['triwulan_ke'],
+                            $p['minggu_ke'],
+                        ]);
+                        if ($stmtCheck->fetch()) { $skipped++; continue; }
+                    }
+
+                    $deadline = $calcDeadline($p);
+                    $stmtInsert->execute([
+                        $svId, $wlId, $ptId, $kgId, $tahun,
+                        $p['triwulan_ke'], $p['bulan'], $p['minggu_ke'],
+                        $target, 0,
+                        $deadline,
+                        $pemeriksaId,
+                        $user['id'],
+                    ]);
+                    $insertedIds[] = (int)$pdo->lastInsertId();
+                    $inserted++;
+                }
             }
 
             $pdo->commit();
@@ -376,25 +402,26 @@ class TugasKegiatanController
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            respond(false, null, 'Gagal mengalokasikan tugas tahunan: ' . $e->getMessage(), 500);
+            respond(false, null, 'Gagal mengalokasikan tugas: ' . $e->getMessage(), 500);
         }
 
         if ($inserted > 0) {
+            $allocCount = count($items);
             logActivity($pdo, (int)$user['id'], 'alokasi_tahunan', 'tugas_kegiatan', null,
-                "{$inserted} tugas di-generate untuk survei_id={$svId}, tahun={$tahun}");
+                "{$inserted} tugas di-generate ({$allocCount} alokasi)");
         }
 
         // Ambil data baris yang baru diinsert
         $rows = [];
         if (!empty($insertedIds)) {
             $ph   = implode(',', array_fill(0, count($insertedIds), '?'));
-            $stmtR = $pdo->prepare('SELECT ' . self::SELECT_COLS . self::FROM_JOIN . " WHERE t.id IN ({$ph}) ORDER BY t.bulan, t.triwulan_ke, t.minggu_ke");
+            $stmtR = $pdo->prepare('SELECT ' . self::SELECT_COLS . self::FROM_JOIN . " WHERE t.id IN ({$ph}) ORDER BY t.tahun DESC, t.bulan, t.triwulan_ke, t.minggu_ke");
             $stmtR->execute(array_values($insertedIds));
             $rows = array_map([self::class, 'addStatus'], $stmtR->fetchAll());
         }
 
         $msg = "{$inserted} tugas berhasil di-generate" . ($skipped ? ", {$skipped} sudah ada (dilewati)." : '.');
-        respond(true, ['inserted' => $inserted, 'skipped' => $skipped, 'rows' => $rows], $msg, 201);
+        respond(true, ['inserted' => $inserted, 'skipped' => $skipped, 'rows' => $rows, 'allocations_count' => count($items)], $msg, 201);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

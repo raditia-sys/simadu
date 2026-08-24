@@ -17,7 +17,7 @@ const inputCls = 'w-full text-sm px-3.5 py-2.5 rounded-xl border border-border-s
 const labelCls = 'block text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1';
 
 // ─── Step 1: Data Perjalanan Dinas ───────────────────────────────────────────
-function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved }) {
+function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved, onBatchCreated }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState(() => laporan ? {
     petugas_id:          String(laporan.petugas_id ?? ''),
@@ -36,6 +36,7 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved 
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
+  const [queue,  setQueue]  = useState([]);
   const sf = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   // Auto-fill biaya dari rate wilayah
@@ -45,6 +46,58 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved 
       setForm(f => ({ ...f, biaya_transport: String(w.rate_transport_lokal) }));
     }
   }, [form.tujuan_wilayah_id]);
+
+  function handleAddToQueue() {
+    if (!form.petugas_id || !form.tujuan_wilayah_id || !form.survei_id || !form.tanggal_tugas || !form.maksud_perjalanan.trim()) {
+      setError('Lengkapi semua field bertanda * untuk menambahkan ke antrean'); return;
+    }
+    setError('');
+    const curPetugas = petugas.find(p => String(p.id) === form.petugas_id);
+    const curWilayah = wilayah.find(w => String(w.id) === form.tujuan_wilayah_id);
+    const curSurvei = surveys.find(s => String(s.id) === form.survei_id);
+
+    const item = {
+      queueId: Date.now() + Math.random(),
+      petugas_id: Number(form.petugas_id),
+      nama_petugas: curPetugas?.nama || 'Petugas',
+      tipe_petugas: curPetugas?.tipe || '',
+      nomor_surat: form.nomor_surat,
+      tanggal_surat_tugas: form.tanggal_surat_tugas,
+      tanggal_tugas: form.tanggal_tugas,
+      tujuan_wilayah_id: Number(form.tujuan_wilayah_id),
+      desa_kelurahan: curWilayah?.desa_kelurahan || '',
+      kecamatan: curWilayah?.kecamatan || '',
+      survei_id: form.survei_id ? Number(form.survei_id) : null,
+      nama_survei: curSurvei?.nama_survei || '',
+      maksud_perjalanan: form.maksud_perjalanan,
+      biaya_transport: form.biaya_transport ? Number(form.biaya_transport) : (curWilayah?.rate_transport_lokal || 0),
+    };
+
+    setQueue(prev => [...prev, item]);
+    // Reset field petugas, tujuan_wilayah, biaya_transport (nomor surat, tanggal surat, survei, maksud tetap tersimpan)
+    setForm(f => ({
+      ...f,
+      petugas_id: '',
+      tujuan_wilayah_id: '',
+      biaya_transport: '',
+    }));
+  }
+
+  function handleRemoveQueue(idx) {
+    setQueue(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleCreateBatch() {
+    if (queue.length === 0) return;
+    setSaving(true); setError('');
+    const res = await api.post('/perjalanan/batch', { items: queue });
+    setSaving(false);
+    if (res.success) {
+      if (onBatchCreated) onBatchCreated(res.data);
+    } else {
+      setError(res.message);
+    }
+  }
 
   async function save() {
     if (!form.petugas_id || !form.tujuan_wilayah_id || !form.survei_id || !form.tanggal_tugas || !form.maksud_perjalanan.trim()) {
@@ -139,16 +192,95 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved 
           className={inputCls} placeholder="Rp 0" />
       </div>
 
-      <div className="flex justify-end pt-2">
-        <button onClick={save} disabled={saving}
-          className="btn-primary px-6 py-2.5 flex items-center gap-2 disabled:opacity-60">
-          {saving ? 'Menyimpan draft...' : (
-            <>
-              Simpan & Lanjut
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
-            </>
+      {/* ── Antrean Laporan Batch ── */}
+      {!laporan && (
+        <div className="pt-2 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleAddToQueue}
+              className="py-2.5 px-4 rounded-xl border-2 border-dashed border-navy/30 dark:border-dark-navy/40 text-navy dark:text-dark-navy hover:bg-navy/5 dark:hover:bg-dark-navy/10 text-xs font-semibold flex items-center gap-2 transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              + Tambah ke Antrean Laporan
+            </button>
+            {queue.length > 0 && (
+              <span className="text-xs font-semibold text-accent-orange">
+                {queue.length} laporan siap dibuat
+              </span>
+            )}
+          </div>
+
+          {queue.length > 0 && (
+            <div className="p-4 rounded-xl border border-border-soft dark:border-dark-border-soft bg-navy/2 dark:bg-dark-navy/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-dark-text-secondary">
+                  Daftar Antrean ({queue.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQueue([])}
+                  className="text-xs text-text-secondary hover:text-accent-orange transition-colors"
+                >
+                  Kosongkan Antrean
+                </button>
+              </div>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {queue.map((item, idx) => (
+                  <div key={item.queueId || idx} className="p-2.5 rounded-lg border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-semibold text-text-primary dark:text-dark-text-primary">
+                        #{idx + 1} {item.nama_petugas} ➔ {item.desa_kelurahan} ({item.kecamatan})
+                      </p>
+                      <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary">
+                        📅 {item.tanggal_tugas} · 💰 {formatRupiah(item.biaya_transport)} · 📋 {item.nama_survei}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveQueue(idx)}
+                      className="text-text-secondary hover:text-accent-orange p-1 rounded transition-colors"
+                      title="Hapus"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-        </button>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-3 pt-2">
+        {queue.length > 0 ? (
+          <button
+            type="button"
+            onClick={handleCreateBatch}
+            disabled={saving}
+            className="btn-primary px-6 py-2.5 flex items-center gap-2 disabled:opacity-60"
+          >
+            {saving ? 'Memproses batch...' : (
+              <>
+                🚀 Buat Semua Draft Laporan ({queue.length} Laporan)
+              </>
+            )}
+          </button>
+        ) : (
+          <button onClick={save} disabled={saving}
+            className="btn-primary px-6 py-2.5 flex items-center gap-2 disabled:opacity-60">
+            {saving ? 'Menyimpan draft...' : (
+              <>
+                Simpan & Lanjut ke Rundown
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -508,6 +640,20 @@ export default function LaporanPerjalananPage() {
     setMode('wizard');
   }
 
+  async function duplicateLaporan(row) {
+    setLoadingDetail(true);
+    const res = await api.post(`/perjalanan/${row.id}/duplicate`);
+    setLoadingDetail(false);
+    if (res.success) {
+      showToast('Laporan berhasil diduplikat sebagai draft baru!');
+      setLaporan(res.data);
+      setStep(0);
+      setMode('wizard');
+    } else {
+      showToast(res.message);
+    }
+  }
+
   async function resumeWizard(row) {
     setLoadingDetail(true);
     const res = await api.get(`/perjalanan/${row.id}/detail`);
@@ -594,6 +740,10 @@ export default function LaporanPerjalananPage() {
               surveys={surveys}
               kegiatanList={kegiatanList}
               onSaved={(data) => { setLaporan(data); setStep(1); }}
+              onBatchCreated={(data) => {
+                showToast(`${data.inserted} draft laporan berhasil dibuat!`);
+                exitWizard();
+              }}
             />
           )}
           {step === 1 && laporan && (
@@ -734,6 +884,14 @@ export default function LaporanPerjalananPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
+                            {/* Duplikat laporan */}
+                            <button onClick={() => duplicateLaporan(row)} title="Duplikat / Salin laporan ini"
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                              </svg>
+                            </button>
+
                             {/* Lanjutkan / Edit wizard */}
                             <button onClick={() => resumeWizard(row)} title={row.status_pengisian === 'draft' ? 'Lanjutkan wizard' : 'Buka wizard'}
                               className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all">
