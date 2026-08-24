@@ -55,9 +55,10 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
   // ── Isi form jika mode edit ───────────────────────────────────────────────
   useEffect(() => {
     if (initialData) {
+      const isLintas = !initialData.wilayah_id || initialData.kecamatan === 'Lintas Wilayah' || initialData.wilayah_kecamatan === '__none__';
       setForm({
         survei_id:          initialData.survei_id != null ? String(initialData.survei_id) : '',
-        wilayah_kecamatan:  initialData.kecamatan ?? '',
+        wilayah_kecamatan:  isLintas ? '__none__' : (initialData.kecamatan ?? ''),
         wilayah_id:         initialData.wilayah_id != null ? String(initialData.wilayah_id) : '',
         petugas_id:         initialData.petugas_id != null ? String(initialData.petugas_id) : '',
         kegiatan_id:        initialData.kegiatan_id != null ? String(initialData.kegiatan_id) : '',
@@ -106,8 +107,12 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
     }
 
     // Validasi dasar
-    if (!form.survei_id || !form.wilayah_id || !form.petugas_id || !form.kegiatan_id) {
-      setError('Survei, Wilayah, Petugas, dan Peran wajib dipilih.'); return;
+    const isNonWilayah = form.wilayah_kecamatan === '__none__' || form.wilayah_kecamatan === 'Lintas Wilayah' || form.wilayah_kecamatan === '' || !form.wilayah_id;
+    if (!form.survei_id || !form.petugas_id || !form.kegiatan_id) {
+      setError('Survei, Petugas, dan Peran wajib dipilih.'); return;
+    }
+    if (!isNonWilayah && !form.wilayah_id) {
+      setError('Silakan pilih Desa / Kelurahan atau pilih opsi Lintas Wilayah.'); return;
     }
     if (!form.tahun || !form.deadline) { setError('Tahun dan Deadline wajib diisi.'); return; }
     if (!form.target_sampel || parseInt(form.target_sampel) < 1) {
@@ -116,9 +121,10 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
 
     const payload = {
       survei_id:      parseInt(form.survei_id),
-      wilayah_id:     parseInt(form.wilayah_id),
+      wilayah_id:     form.wilayah_id ? parseInt(form.wilayah_id) : null,
       petugas_id:     parseInt(form.petugas_id),
       kegiatan_id:    parseInt(form.kegiatan_id),
+      pemeriksa_id:   form.pemeriksa_id ? parseInt(form.pemeriksa_id) : null,
       tahun:          parseInt(form.tahun),
       target_sampel:  parseInt(form.target_sampel),
       sampel_selesai: parseInt(form.sampel_selesai || '0'),
@@ -220,18 +226,23 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
 
             {/* Wilayah bertingkat */}
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Kecamatan" required>
+              <FormField label="Kecamatan (Opsional)">
                 <Select id="sel-kecamatan" value={form.wilayah_kecamatan}
-                  onChange={(e) => { f('wilayah_kecamatan', e.target.value); f('wilayah_id', ''); }}>
-                  <option value="">-- Pilih Kecamatan --</option>
-                  {kecamatanList.map((k) => <option key={k}>{k}</option>)}
+                  onChange={(e) => { 
+                    const val = e.target.value;
+                    f('wilayah_kecamatan', val); 
+                    f('wilayah_id', ''); 
+                  }}>
+                  <option value="">-- Pilih Kecamatan / Non-Wilayah --</option>
+                  <option value="__none__">🌐 Lintas Wilayah / Seluruh Kabupaten (Non-Wilayah)</option>
+                  {kecamatanList.map((k) => <option key={k} value={k}>{k}</option>)}
                 </Select>
               </FormField>
-              <FormField label="Desa / Kelurahan" required>
+              <FormField label="Desa / Kelurahan">
                 <Select id="sel-desa" value={form.wilayah_id}
                   onChange={(e) => f('wilayah_id', e.target.value)}
-                  disabled={!form.wilayah_kecamatan}>
-                  <option value="">-- Pilih Desa --</option>
+                  disabled={!form.wilayah_kecamatan || form.wilayah_kecamatan === '__none__'}>
+                  <option value="">{form.wilayah_kecamatan === '__none__' ? '— Seluruh Wilayah / Non-Wilayah —' : '-- Pilih Desa --'}</option>
                   {desaList.map((w) => (
                     <option key={w.id} value={w.id}>{w.desa_kelurahan}</option>
                   ))}

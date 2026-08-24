@@ -30,8 +30,12 @@ class DashboardController
             $params[] = (int)$survei_id;
         }
         if ($kecamatan = query('kecamatan')) {
-            $where[]  = 'mw.kecamatan = ?';
-            $params[] = $kecamatan;
+            if ($kecamatan === '__none__' || $kecamatan === 'Lintas Wilayah' || $kecamatan === 'Non-Wilayah') {
+                $where[] = 't.wilayah_id IS NULL';
+            } else {
+                $where[]  = 'mw.kecamatan = ?';
+                $params[] = $kecamatan;
+            }
         }
 
         return [$where, $params];
@@ -71,7 +75,7 @@ class DashboardController
                 SUM(target_sampel)  AS total_target,
                 SUM(sampel_selesai) AS total_selesai
             FROM tugas_kegiatan t
-            JOIN master_wilayah mw ON mw.id = t.wilayah_id
+            LEFT JOIN master_wilayah mw ON mw.id = t.wilayah_id
             $whereSql
         ";
         $stmt = $pdo->prepare($sql);
@@ -100,8 +104,7 @@ class DashboardController
 
         // Grouping: jika ada filter kecamatan → group by desa; else by kecamatan
         $byDesa = (bool)query('kecamatan');
-        $groupCol = $byDesa ? 'mw.desa_kelurahan' : 'mw.kecamatan';
-        $labelCol = $byDesa ? 'desa_kelurahan' : 'kecamatan';
+        $groupCol = $byDesa ? "COALESCE(mw.desa_kelurahan, 'Seluruh Wilayah')" : "COALESCE(mw.kecamatan, 'Lintas Wilayah')";
 
         $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
@@ -115,7 +118,7 @@ class DashboardController
                     SUM(sampel_selesai) / NULLIF(SUM(target_sampel), 0) * 100, 1
                 ) AS persen
             FROM tugas_kegiatan t
-            JOIN master_wilayah mw ON mw.id = t.wilayah_id
+            LEFT JOIN master_wilayah mw ON mw.id = t.wilayah_id
             $whereSql
             GROUP BY $groupCol
             ORDER BY persen DESC
@@ -137,7 +140,25 @@ class DashboardController
 
         $sql = "
             SELECT
-                ms.nama_survei AS label,
+                ms.id AS survei_id,
+                CASE 
+                    WHEN ms.kode_survei IS NOT NULL AND ms.kode_survei != '' THEN
+                        CASE 
+                            WHEN (SELECT COUNT(*) FROM master_survei ms2 WHERE ms2.kode_survei = ms.kode_survei) > 1 THEN
+                                CASE 
+                                    WHEN ms.jenis_periode = 'mingguan' THEN CONCAT(ms.kode_survei, ' (M)')
+                                    WHEN ms.jenis_periode = 'bulanan' THEN CONCAT(ms.kode_survei, ' (B)')
+                                    WHEN ms.jenis_periode = 'triwulanan' THEN CONCAT(ms.kode_survei, ' (TW)')
+                                    WHEN ms.jenis_periode = 'tahunan' THEN CONCAT(ms.kode_survei, ' (Thn)')
+                                    ELSE ms.kode_survei
+                                END
+                            ELSE ms.kode_survei
+                        END
+                    ELSE ms.nama_survei
+                END AS label,
+                ms.kode_survei,
+                ms.nama_survei,
+                ms.jenis_periode,
                 ms.kategori,
                 COUNT(*) AS total_tugas,
                 SUM(t.target_sampel)  AS total_target,
@@ -147,10 +168,10 @@ class DashboardController
                 ) AS persen
             FROM tugas_kegiatan t
             JOIN master_survei ms  ON ms.id = t.survei_id
-            JOIN master_wilayah mw ON mw.id = t.wilayah_id
+            LEFT JOIN master_wilayah mw ON mw.id = t.wilayah_id
             $whereSql
-            GROUP BY ms.id, ms.nama_survei, ms.kategori
-            ORDER BY persen DESC
+            GROUP BY ms.id, ms.kode_survei, ms.nama_survei, ms.jenis_periode, ms.kategori
+            ORDER BY persen DESC, ms.id ASC
         ";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -170,7 +191,9 @@ class DashboardController
         // Ambil tugas yang deadline-nya dalam N hari ke depan & belum selesai
         $stmt = $pdo->prepare("
             SELECT
-                t.id, ms.nama_survei, mw.kecamatan, mw.desa_kelurahan,
+                t.id, ms.nama_survei,
+                COALESCE(mw.kecamatan, 'Lintas Wilayah') AS kecamatan,
+                COALESCE(mw.desa_kelurahan, 'Seluruh Wilayah') AS desa_kelurahan,
                 p.nama AS nama_petugas,
                 t.target_sampel, t.sampel_selesai, t.deadline,
                 DATEDIFF(t.deadline, CURDATE()) AS sisa_hari,
@@ -179,7 +202,7 @@ class DashboardController
                 ) AS persen
             FROM tugas_kegiatan t
             JOIN master_survei   ms ON ms.id = t.survei_id
-            JOIN master_wilayah  mw ON mw.id = t.wilayah_id
+            LEFT JOIN master_wilayah  mw ON mw.id = t.wilayah_id
             JOIN petugas          p  ON p.id  = t.petugas_id
             WHERE t.deadline BETWEEN CURDATE() AND ?
               AND (t.sampel_selesai < t.target_sampel OR t.target_sampel = 0)

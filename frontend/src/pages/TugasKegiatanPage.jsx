@@ -46,7 +46,7 @@ const ALL_COLUMNS = [
 // ─── Filter state awal ────────────────────────────────────────────────────────
 const EMPTY_FILTERS = {
   survei_id: '', kecamatan: '', wilayah_id: '', petugas_id: '',
-  kegiatan_id: '', tahun: '', bulan: '', triwulan_ke: '',
+  pemeriksa_id: '', kegiatan_id: '', tahun: '', bulan: '', triwulan_ke: '',
   minggu_ke: '', status: '', deadline_dari: '', deadline_sampai: '',
 };
 
@@ -68,7 +68,7 @@ function DeadlineBadge({ date, status }) {
   if (!date) return <span>—</span>;
   const isLate = status !== 'Selesai' && new Date(date) < new Date();
   return (
-    <span className={`text-xs font-mono ${isLate ? 'text-accent-orange dark:text-dark-accent-orange font-semibold' : 'text-text-primary dark:text-dark-text-primary'}`}>
+    <span className={`text-xs font-mono whitespace-nowrap ${isLate ? 'text-accent-orange dark:text-dark-accent-orange font-semibold' : 'text-text-primary dark:text-dark-text-primary'}`}>
       {isLate && '⚠ '}{date}
     </span>
   );
@@ -81,13 +81,13 @@ function FilterRow({ filters, onChange, surveys, wilayahs, petugasList, kegiatan
     ? wilayahs.filter((w) => w.kecamatan === filters.kecamatan)
     : wilayahs;
 
-  const s = 'w-full text-xs px-2 py-1.5 rounded-lg border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-1 focus:ring-navy/30 dark:focus:ring-dark-navy/30 transition-all';
+  const s = 'w-full text-[11px] px-1.5 py-1 rounded-md border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-1 focus:ring-navy/30 dark:focus:ring-dark-navy/30 transition-all';
 
   return (
     <tr className="bg-navy/2 dark:bg-dark-navy/5 border-t border-border-soft dark:border-dark-border-soft">
-      {isSuperadmin && <td className="px-2 py-1.5 w-8" />} {/* checkbox col */}
+      {isSuperadmin && <td className="px-1.5 py-1 w-7 text-center" />} {/* checkbox col */}
       {visible.survei && (
-        <td className="px-2 py-1.5">
+        <td className="px-1.5 py-1">
           <select className={s} value={filters.survei_id} onChange={(e) => onChange('survei_id', e.target.value)}>
             <option value="">Semua Survei</option>
             {surveys.map((sv) => <option key={sv.id} value={sv.id}>{sv.nama_survei}</option>)}
@@ -95,20 +95,22 @@ function FilterRow({ filters, onChange, surveys, wilayahs, petugasList, kegiatan
         </td>
       )}
       {visible.wilayah && (
-        <td className="px-2 py-1.5 space-y-1">
+        <td className="px-1.5 py-1 space-y-1">
           <select className={s} value={filters.kecamatan}
             onChange={(e) => { onChange('kecamatan', e.target.value); onChange('wilayah_id', ''); }}>
-            <option value="">Semua Kecamatan</option>
+            <option value="">Semua Kec.</option>
+            <option value="__none__">🌐 Lintas Wilayah</option>
             {kecamatanList.map((k) => <option key={k}>{k}</option>)}
           </select>
-          <select className={s} value={filters.wilayah_id} onChange={(e) => onChange('wilayah_id', e.target.value)}>
-            <option value="">Semua Desa</option>
+          <select className={s} value={filters.wilayah_id} onChange={(e) => onChange('wilayah_id', e.target.value)}
+            disabled={filters.kecamatan === '__none__'}>
+            <option value="">{filters.kecamatan === '__none__' ? '— Lintas Wilayah —' : 'Semua Desa'}</option>
             {desaList.map((w) => <option key={w.id} value={w.id}>{w.desa_kelurahan}</option>)}
           </select>
         </td>
       )}
       {visible.petugas && (
-        <td className="px-2 py-1.5">
+        <td className="px-1.5 py-1">
           <select className={s} value={filters.petugas_id} onChange={(e) => onChange('petugas_id', e.target.value)}>
             <option value="">Semua Petugas</option>
             {petugasList.map((p) => <option key={p.id} value={p.id}>{p.nama}</option>)}
@@ -116,15 +118,25 @@ function FilterRow({ filters, onChange, surveys, wilayahs, petugasList, kegiatan
         </td>
       )}
       {visible.peran && (
-        <td className="px-2 py-1.5">
+        <td className="px-1.5 py-1">
           <select className={s} value={filters.kegiatan_id} onChange={(e) => onChange('kegiatan_id', e.target.value)}>
             <option value="">Semua Peran</option>
             {kegiatans.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
           </select>
         </td>
       )}
+      {visible.pemeriksa && (
+        <td className="px-1.5 py-1">
+          <select className={s} value={filters.pemeriksa_id} onChange={(e) => onChange('pemeriksa_id', e.target.value)}>
+            <option value="">Semua Pemeriksa</option>
+            {petugasList.filter((p) => p.tipe === 'pegawai').map((p) => (
+              <option key={p.id} value={p.id}>{p.nama}</option>
+            ))}
+          </select>
+        </td>
+      )}
       {visible.periode && (
-        <td className="px-2 py-1.5 space-y-1">
+        <td className="px-1.5 py-1 space-y-1">
           <input type="number" placeholder="Tahun" className={s} value={filters.tahun}
             onChange={(e) => onChange('tahun', e.target.value)} min="2000" max="2100" />
           <select className={s} value={filters.bulan} onChange={(e) => onChange('bulan', e.target.value)}>
@@ -135,11 +147,11 @@ function FilterRow({ filters, onChange, surveys, wilayahs, petugasList, kegiatan
           </select>
         </td>
       )}
-      {visible.target  && <td className="px-2 py-1.5" />}
-      {visible.selesai && <td className="px-2 py-1.5" />}
-      {visible.progress && <td className="px-2 py-1.5" />}
+      {visible.target  && <td className="px-1.5 py-1" />}
+      {visible.selesai && <td className="px-1.5 py-1" />}
+      {visible.progress && <td className="px-1.5 py-1" />}
       {visible.status && (
-        <td className="px-2 py-1.5">
+        <td className="px-1.5 py-1">
           <select className={s} value={filters.status} onChange={(e) => onChange('status', e.target.value)}>
             <option value="">Semua Status</option>
             <option value="Belum Mulai">Belum Mulai</option>
@@ -149,14 +161,14 @@ function FilterRow({ filters, onChange, surveys, wilayahs, petugasList, kegiatan
         </td>
       )}
       {visible.deadline && (
-        <td className="px-2 py-1.5 space-y-1">
+        <td className="px-1.5 py-1 space-y-1">
           <input type="date" className={s} value={filters.deadline_dari}
             onChange={(e) => onChange('deadline_dari', e.target.value)} title="Deadline dari" />
           <input type="date" className={s} value={filters.deadline_sampai}
             onChange={(e) => onChange('deadline_sampai', e.target.value)} title="Deadline sampai" />
         </td>
       )}
-      <td className="px-2 py-1.5 w-20" /> {/* aksi col */}
+      <td className="px-1.5 py-1 w-16" /> {/* aksi col */}
     </tr>
   );
 }
@@ -472,7 +484,7 @@ export default function TugasKegiatanPage() {
               <tr className="bg-navy/5 dark:bg-dark-navy/10">
                 {/* Checkbox header */}
                 {isSuperadmin && (
-                  <th className="px-3 py-3 w-8">
+                  <th className="px-1.5 py-2.5 w-7 text-center">
                     <input type="checkbox"
                       checked={data.length > 0 && selected.size === data.length}
                       onChange={toggleAll}
@@ -480,18 +492,18 @@ export default function TugasKegiatanPage() {
                     />
                   </th>
                 )}
-                {visible.survei && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Survei</th>}
-                {visible.wilayah && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Wilayah</th>}
-                {visible.petugas && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Petugas</th>}
-                {visible.peran && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Peran</th>}
-                {visible.pemeriksa && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Pemeriksa</th>}
-                {visible.periode && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Periode</th>}
-                {visible.target && <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Target</th>}
-                {visible.selesai && <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Selesai</th>}
-                {visible.progress && <th className="px-4 py-3 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Progres</th>}
-                {visible.status && <th className="px-4 py-3 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Status</th>}
-                {visible.deadline && <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Deadline</th>}
-                <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Aksi</th>
+                {visible.survei && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Survei</th>}
+                {visible.wilayah && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Wilayah</th>}
+                {visible.petugas && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Petugas</th>}
+                {visible.peran && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Peran</th>}
+                {visible.pemeriksa && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Pemeriksa</th>}
+                {visible.periode && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Periode</th>}
+                {visible.target && <th className="px-1.5 py-2.5 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Target</th>}
+                {visible.selesai && <th className="px-1.5 py-2.5 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Selesai</th>}
+                {visible.progress && <th className="px-1 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Progres</th>}
+                {visible.status && <th className="px-1.5 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Status</th>}
+                {visible.deadline && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Deadline</th>}
+                <th className="px-1.5 py-2.5 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider w-16">Aksi</th>
               </tr>
 
               {/* ── Filter Row ── */}
@@ -513,9 +525,9 @@ export default function TugasKegiatanPage() {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft">
-                    {isSuperadmin && <td className="px-3 py-3"><div className="h-3 w-3.5 rounded bg-status-neutral/20 animate-pulse" /></td>}
+                    {isSuperadmin && <td className="px-1.5 py-2 text-center"><div className="h-3 w-3.5 rounded bg-status-neutral/20 animate-pulse mx-auto" /></td>}
                     {[...Array(Object.values(visible).filter(Boolean).length + 1)].map((_, j) => (
-                      <td key={j} className="px-4 py-3">
+                      <td key={j} className="px-2 py-2">
                         <div className="h-3 rounded-full bg-status-neutral/20 dark:bg-dark-status-neutral/15 animate-pulse" style={{ width: `${50 + (j*17)%40}%` }} />
                       </td>
                     ))}
@@ -546,7 +558,7 @@ export default function TugasKegiatanPage() {
 
                       {/* Checkbox */}
                       {isSuperadmin && (
-                        <td className="px-3 py-3">
+                        <td className="px-1.5 py-2 text-center">
                           <input type="checkbox" checked={selected.has(row.id)}
                             onChange={() => toggleSelect(row.id)}
                             className="w-3.5 h-3.5 rounded accent-navy" />
@@ -555,9 +567,9 @@ export default function TugasKegiatanPage() {
 
                       {/* Survei */}
                       {visible.survei && (
-                        <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-text-primary dark:text-dark-text-primary leading-tight">{row.nama_survei}</p>
-                          <span className={`mt-0.5 inline-block text-xs px-2 py-0.5 rounded-full ${KATEGORI_BADGE[row.kategori] ?? ''}`}>
+                        <td className="px-2 py-2 min-w-[130px] max-w-[180px]">
+                          <p className="text-xs font-semibold text-text-primary dark:text-dark-text-primary leading-snug line-clamp-2" title={row.nama_survei}>{row.nama_survei}</p>
+                          <span className={`mt-0.5 inline-block text-[10px] px-1.5 py-0.2 rounded-full font-medium ${KATEGORI_BADGE[row.kategori] ?? ''}`}>
                             {row.kategori}
                           </span>
                         </td>
@@ -565,17 +577,25 @@ export default function TugasKegiatanPage() {
 
                       {/* Wilayah */}
                       {visible.wilayah && (
-                        <td className="px-4 py-3">
-                          <p className="text-xs text-text-secondary dark:text-dark-text-secondary">{row.kecamatan}</p>
-                          <p className="text-sm text-text-primary dark:text-dark-text-primary">{row.desa_kelurahan}</p>
+                        <td className="px-2 py-2 min-w-[105px] max-w-[140px]">
+                          {!row.wilayah_id || row.kecamatan === 'Lintas Wilayah' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-navy/5 dark:bg-dark-navy/10 text-navy dark:text-dark-navy font-medium">
+                              🌐 Lintas Wilayah
+                            </span>
+                          ) : (
+                            <>
+                              <p className="text-[10px] text-text-secondary dark:text-dark-text-secondary leading-tight truncate">{row.kecamatan}</p>
+                              <p className="text-xs font-medium text-text-primary dark:text-dark-text-primary leading-tight truncate">{row.desa_kelurahan}</p>
+                            </>
+                          )}
                         </td>
                       )}
 
                       {/* Petugas */}
                       {visible.petugas && (
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-text-primary dark:text-dark-text-primary leading-tight">{row.nama_petugas}</p>
-                          <span className={`mt-0.5 inline-block text-xs px-2 py-0.5 rounded-full capitalize ${TIPE_BADGE[row.tipe_petugas] ?? ''}`}>
+                        <td className="px-2 py-2 min-w-[100px] max-w-[130px]">
+                          <p className="text-xs font-medium text-text-primary dark:text-dark-text-primary leading-tight truncate" title={row.nama_petugas}>{row.nama_petugas}</p>
+                          <span className={`mt-0.5 inline-block text-[10px] px-1.5 py-0.2 rounded-full capitalize font-medium ${TIPE_BADGE[row.tipe_petugas] ?? ''}`}>
                             {row.tipe_petugas}
                           </span>
                         </td>
@@ -583,50 +603,59 @@ export default function TugasKegiatanPage() {
 
                       {/* Peran */}
                       {visible.peran && (
-                        <td className="px-4 py-3 text-sm text-text-primary dark:text-dark-text-primary max-w-36 truncate" title={row.nama_peran}>
-                          {row.nama_peran}
+                        <td className="px-2 py-2 min-w-[85px] max-w-[110px]">
+                          <p className="text-xs text-text-secondary dark:text-dark-text-secondary truncate" title={row.nama_peran}>{row.nama_peran}</p>
                         </td>
                       )}
 
                       {/* Pemeriksa */}
                       {visible.pemeriksa && (
-                        <td className="px-4 py-3 text-sm text-text-secondary dark:text-dark-text-secondary">
+                        <td className="px-2 py-2 min-w-[85px] max-w-[110px]">
                           {row.nama_pemeriksa
-                            ? <span className="text-text-primary dark:text-dark-text-primary">{row.nama_pemeriksa}</span>
+                            ? <p className="text-xs text-text-primary dark:text-dark-text-primary truncate" title={row.nama_pemeriksa}>{row.nama_pemeriksa}</p>
                             : <span className="text-xs text-text-secondary/60 dark:text-dark-text-secondary/60">—</span>}
                         </td>
                       )}
 
                       {/* Periode */}
                       {visible.periode && (
-                        <td className="px-4 py-3"><PeriodeLabel row={row} /></td>
+                        <td className="px-2 py-2 min-w-[80px] whitespace-nowrap"><PeriodeLabel row={row} /></td>
                       )}
 
                       {/* Target */}
                       {visible.target && (
-                        <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-text-primary dark:text-dark-text-primary">
+                        <td className="px-1.5 py-2 text-right font-mono text-xs tabular-nums text-text-primary dark:text-dark-text-primary">
                           {row.target_sampel}
                         </td>
                       )}
 
                       {/* Selesai */}
                       {visible.selesai && (
-                        <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-text-primary dark:text-dark-text-primary">
-                          {row.sampel_selesai}
+                        <td className="px-1.5 py-2 text-right font-mono text-xs tabular-nums text-text-primary dark:text-dark-text-primary">
+                          <button
+                            onClick={() => setTugasModal({
+                              open: true,
+                              mode: isSuperadmin ? 'edit' : 'edit-selesai',
+                              row,
+                            })}
+                            title="Klik untuk ubah progres"
+                            className="px-1.5 py-0.5 rounded-md hover:bg-navy/8 dark:hover:bg-dark-navy/15 hover:text-navy dark:hover:text-dark-navy font-semibold transition-colors">
+                            {row.sampel_selesai}
+                          </button>
                         </td>
                       )}
 
                       {/* Progress ring */}
                       {visible.progress && (
-                        <td className="px-4 py-3 text-center">
-                          <RadialProgress value={row.persen} size={44} strokeWidth={5} />
+                        <td className="px-1 py-2 text-center">
+                          <RadialProgress value={row.persen} size={36} strokeWidth={4} />
                         </td>
                       )}
 
                       {/* Status */}
                       {visible.status && (
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_BADGE[row.status] ?? ''}`}>
+                        <td className="px-1.5 py-2 text-center whitespace-nowrap">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_BADGE[row.status] ?? ''}`}>
                             {row.status}
                           </span>
                         </td>
@@ -634,14 +663,14 @@ export default function TugasKegiatanPage() {
 
                       {/* Deadline */}
                       {visible.deadline && (
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           <DeadlineBadge date={row.deadline} status={row.status} />
                         </td>
                       )}
 
                       {/* Aksi */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="px-1.5 py-2 w-16">
+                        <div className="flex items-center justify-end gap-0.5">
                           <button
                             onClick={() => setTugasModal({
                               open: true,
@@ -704,7 +733,10 @@ export default function TugasKegiatanPage() {
           mode={tugasModal.mode}
           initialData={tugasModal.row}
           onClose={() => setTugasModal({ open: false, mode: 'add', row: null })}
-          onSaved={() => load()}
+          onSaved={() => {
+            showToast('Data tugas dan progres berhasil disimpan.');
+            load();
+          }}
         />
       )}
 

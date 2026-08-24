@@ -81,7 +81,18 @@ export default function ProgressTable({ data = [], loading = false, title = 'Pro
                 return (
                   <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft hover:bg-navy/2 dark:hover:bg-dark-navy/4 transition-colors">
                     <td className="px-5 py-3 font-medium text-text-primary dark:text-dark-text-primary">
-                      {row.label}
+                      {row.nama_survei ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {row.kode_survei && (
+                            <span className="px-1.5 py-0.5 rounded text-[11px] font-mono font-bold bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy">
+                              {row.kode_survei}
+                            </span>
+                          )}
+                          <span className="text-sm font-medium">{row.nama_survei}</span>
+                        </div>
+                      ) : (
+                        row.label
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-text-secondary dark:text-dark-text-secondary">
                       {row.total_tugas}

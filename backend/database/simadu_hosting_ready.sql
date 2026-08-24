@@ -206,6 +206,7 @@ CREATE TABLE `master_survei` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deadline_hari` tinyint unsigned DEFAULT NULL COMMENT 'Tanggal deadline entri data per periode (1-31)',
+  `deadline_hari_mg2` tinyint unsigned DEFAULT NULL COMMENT 'Tanggal deadline entri data minggu ke-2 (1-31)',
   PRIMARY KEY (`id`),
   KEY `idx_survei_kategori` (`kategori`)
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Master survei & kegiatan statistik dengan metadata periode dan entri data';
@@ -635,7 +636,7 @@ DROP TABLE IF EXISTS `tugas_kegiatan`;
 CREATE TABLE `tugas_kegiatan` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `survei_id` int unsigned NOT NULL,
-  `wilayah_id` int unsigned NOT NULL,
+  `wilayah_id` int unsigned DEFAULT NULL,
   `petugas_id` int unsigned NOT NULL,
   `kegiatan_id` int unsigned NOT NULL COMMENT 'Peran petugas (FKÔåÆmaster_kegiatan)',
   `tahun` smallint unsigned NOT NULL COMMENT 'Tahun kegiatan (wajib selalu)',
@@ -644,7 +645,7 @@ CREATE TABLE `tugas_kegiatan` (
   `minggu_ke` tinyint unsigned DEFAULT NULL COMMENT 'Isi jika jenis_periode = mingguan. Hanya 1 atau 2.',
   `target_sampel` smallint unsigned NOT NULL DEFAULT '0' COMMENT 'Jumlah sampel yang ditugaskan',
   `sampel_selesai` smallint unsigned NOT NULL DEFAULT '0' COMMENT 'Realisasi sampel selesai',
-  `deadline` date NOT NULL,
+  `deadline` date DEFAULT NULL,
   `created_by` int unsigned DEFAULT NULL COMMENT 'FKÔåÆusers.id (user yang input data)',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -661,7 +662,7 @@ CREATE TABLE `tugas_kegiatan` (
   CONSTRAINT `fk_tugas_kegiatan` FOREIGN KEY (`kegiatan_id`) REFERENCES `master_kegiatan` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_tugas_petugas` FOREIGN KEY (`petugas_id`) REFERENCES `petugas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_tugas_survei` FOREIGN KEY (`survei_id`) REFERENCES `master_survei` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `fk_tugas_wilayah` FOREIGN KEY (`wilayah_id`) REFERENCES `master_wilayah` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_tugas_wilayah` FOREIGN KEY (`wilayah_id`) REFERENCES `master_wilayah` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `tugas_kegiatan_chk_1` CHECK ((`triwulan_ke` between 1 and 4)),
   CONSTRAINT `tugas_kegiatan_chk_2` CHECK ((`bulan` between 1 and 12)),
   CONSTRAINT `tugas_kegiatan_chk_3` CHECK ((`minggu_ke` in (1,2)))

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Modal, { FormField, Input, Select } from './ui/Modal';
 import { api } from '../lib/api';
 
@@ -8,32 +8,47 @@ const BULAN_NAMES = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','O
  * Hitung deadline per periode sesuai jenis_periode survei.
  * Logika sama dengan backend PHP calcDeadline().
  */
-function calcDeadline(jenis, periodeObj, tahun, deadlineHari) {
-  if (!deadlineHari) return null;
-  const hari = String(deadlineHari).padStart(2, '0');
+function calcDeadline(jenis, periodeObj, tahun, deadlineHari, deadlineHariMg2, bulanSelesai) {
   const pad = (n) => String(n).padStart(2, '0');
   switch (jenis) {
-    case 'tahunan': return `${tahun}-12-${hari}`;
-    case 'bulanan':
+    case 'tahunan': {
+      const bln = bulanSelesai || 12;
+      const maxHari = new Date(tahun, bln, 0).getDate();
+      const d = deadlineHari ? Math.min(deadlineHari, maxHari) : maxHari;
+      return `${tahun}-${pad(bln)}-${pad(d)}`;
+    }
+    case 'bulanan': {
+      const maxHari = new Date(tahun, periodeObj.bulan, 0).getDate();
+      const d = deadlineHari ? Math.min(deadlineHari, maxHari) : maxHari;
+      return `${tahun}-${pad(periodeObj.bulan)}-${pad(d)}`;
+    }
     case 'mingguan': {
       const maxHari = new Date(tahun, periodeObj.bulan, 0).getDate();
-      const h = Math.min(deadlineHari, maxHari);
-      return `${tahun}-${pad(periodeObj.bulan)}-${String(h).padStart(2,'0')}`;
+      const isMg2 = periodeObj.minggu_ke === 2;
+      const dl = (isMg2 && deadlineHariMg2) ? deadlineHariMg2 : deadlineHari;
+      const d = dl ? Math.min(dl, maxHari) : maxHari;
+      return `${tahun}-${pad(periodeObj.bulan)}-${pad(d)}`;
     }
     case 'triwulanan': {
       const bulanAkhir = periodeObj.triwulan_ke * 3;
       const maxHari = new Date(tahun, bulanAkhir, 0).getDate();
-      const h = Math.min(deadlineHari, maxHari);
-      return `${tahun}-${pad(bulanAkhir)}-${String(h).padStart(2,'0')}`;
+      const d = deadlineHari ? Math.min(deadlineHari, maxHari) : maxHari;
+      return `${tahun}-${pad(bulanAkhir)}-${pad(d)}`;
     }
-    default: return null;
+    default: return `${tahun}-12-31`;
   }
 }
 
 /** Generate daftar periode berdasarkan jenis_periode */
-function generatePeriods(jenis) {
+function generatePeriods(jenis, bulanMulai, bulanSelesai) {
   switch (jenis) {
-    case 'tahunan': return [{ label: 'Tahunan', bulan: null, triwulan_ke: null, minggu_ke: null }];
+    case 'tahunan': {
+      let label = 'Tahunan';
+      if (bulanMulai && bulanSelesai) {
+        label = `Tahunan (${BULAN_NAMES[bulanMulai]}–${BULAN_NAMES[bulanSelesai]})`;
+      }
+      return [{ label, bulan: null, triwulan_ke: null, minggu_ke: null }];
+    }
     case 'bulanan':
       return Array.from({ length: 12 }, (_, i) => ({
         label: BULAN_NAMES[i + 1], bulan: i + 1, triwulan_ke: null, minggu_ke: null,
@@ -70,6 +85,7 @@ export default function AlokasiTahunanModal({ onClose, onSaved }) {
   const [error,   setError]   = useState('');
   const [saving,  setSaving]  = useState(false);
   const [result,  setResult]  = useState(null); // hasil setelah submit
+  const [confirmDialog, setConfirmDialog] = useState(null); // popup konfirmasi penugasan ganda/tambahan
 
   // Load dropdown data
   useEffect(() => {
@@ -90,29 +106,36 @@ export default function AlokasiTahunanModal({ onClose, onSaved }) {
     });
   }, []);
 
-  const selectedSurvei = surveys.find(s => String(s.id) === form.survei_id);
-  const jenisPeriode   = selectedSurvei?.jenis_periode ?? '';
-  const deadlineHari   = selectedSurvei?.deadline_hari ?? null;
+  const selectedSurvei    = surveys.find(s => String(s.id) === form.survei_id);
+  const jenisPeriode      = selectedSurvei?.jenis_periode ?? '';
+  const bulanMulai        = selectedSurvei?.bulan_mulai ? parseInt(selectedSurvei.bulan_mulai) : null;
+  const bulanSelesai      = selectedSurvei?.bulan_selesai ? parseInt(selectedSurvei.bulan_selesai) : null;
+  const deadlineHari      = selectedSurvei?.deadline_hari ?? null;
+  const deadlineHariMg2   = selectedSurvei?.deadline_hari_mg2 ?? null;
 
   const kecamatanList = useMemo(() => [...new Set(wilayahs.map(w => w.kecamatan))].sort(), [wilayahs]);
   const desaList      = useMemo(() => wilayahs.filter(w => w.kecamatan === form.wilayah_kecamatan), [wilayahs, form.wilayah_kecamatan]);
 
   // Preview periode
-  const periods = useMemo(() => generatePeriods(jenisPeriode), [jenisPeriode]);
+  const periods = useMemo(() => generatePeriods(jenisPeriode, bulanMulai, bulanSelesai), [jenisPeriode, bulanMulai, bulanSelesai]);
   const previewRows = useMemo(() =>
     periods.map(p => ({
       ...p,
-      deadline: calcDeadline(jenisPeriode, p, parseInt(form.tahun), deadlineHari),
+      deadline: calcDeadline(jenisPeriode, p, parseInt(form.tahun), deadlineHari, deadlineHariMg2, bulanSelesai),
     })),
-    [periods, jenisPeriode, form.tahun, deadlineHari]
+    [periods, jenisPeriode, form.tahun, deadlineHari, deadlineHariMg2, bulanSelesai]
   );
 
   const f = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
-  async function handleSubmit() {
+  async function handleSubmit(force = false) {
     setError('');
-    if (!form.survei_id || !form.wilayah_id || !form.petugas_id || !form.kegiatan_id) {
-      setError('Survei, Wilayah, Petugas, dan Peran wajib dipilih.'); return;
+    const isNonWilayah = form.wilayah_kecamatan === '__none__' || form.wilayah_kecamatan === '';
+    if (!form.survei_id || !form.petugas_id || !form.kegiatan_id) {
+      setError('Survei, Petugas, dan Peran wajib dipilih.'); return;
+    }
+    if (!isNonWilayah && !form.wilayah_id) {
+      setError('Silakan pilih Desa / Kelurahan atau pilih opsi Lintas Wilayah.'); return;
     }
     if (!form.tahun) { setError('Tahun wajib diisi.'); return; }
     if (!form.target_sampel || parseInt(form.target_sampel) < 1) {
@@ -122,16 +145,22 @@ export default function AlokasiTahunanModal({ onClose, onSaved }) {
     setSaving(true);
     const payload = {
       survei_id:      parseInt(form.survei_id),
-      wilayah_id:     parseInt(form.wilayah_id),
+      wilayah_id:     form.wilayah_id ? parseInt(form.wilayah_id) : null,
       petugas_id:     parseInt(form.petugas_id),
       kegiatan_id:    parseInt(form.kegiatan_id),
       tahun:          parseInt(form.tahun),
       target_sampel:  parseInt(form.target_sampel),
       pemeriksa_id:   form.pemeriksa_id ? parseInt(form.pemeriksa_id) : null,
+      ...(force ? { force: true } : {}),
     };
     const res = await api.post('/tugas/alokasi-tahunan', payload);
     setSaving(false);
     if (res.success) {
+      if (res.data?.require_confirm) {
+        setConfirmDialog(res.data);
+        return;
+      }
+      setConfirmDialog(null);
       setResult(res.data);
       if (onSaved) onSaved(res.data.rows ?? []);
     } else {
@@ -151,12 +180,17 @@ export default function AlokasiTahunanModal({ onClose, onSaved }) {
             </svg>
           </div>
           <div>
-            <p className="font-semibold text-text-primary dark:text-dark-text-primary text-lg">{result.inserted} Tugas Di-generate</p>
-            {result.skipped > 0 && (
-              <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
-                {result.skipped} periode sudah ada sebelumnya (dilewati)
-              </p>
-            )}
+            <h4 className="font-semibold text-text-primary dark:text-dark-text-primary text-base">Alokasi Berhasil!</h4>
+            <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">
+              <strong className="text-status-active">{result.inserted} tugas</strong> berhasil dibuat
+              {result.skipped > 0 && <>, <strong className="text-accent-orange">{result.skipped} dilewati</strong> (sudah ada)</>}.
+            </p>
+          </div>
+          <div className="rounded-xl bg-navy/5 dark:bg-dark-navy/10 p-3 text-xs text-left space-y-1 text-text-secondary dark:text-dark-text-secondary">
+            <div>Survei: <span className="font-medium text-text-primary dark:text-dark-text-primary">{selectedSurvei?.nama_survei}</span></div>
+            <div>Wilayah: <span className="font-medium text-text-primary dark:text-dark-text-primary">{form.wilayah_id ? desaList.find(d => String(d.id) === form.wilayah_id)?.desa_kelurahan : '🌐 Lintas Wilayah (Seluruh Kabupaten)'}</span></div>
+            <div>Tahun: <span className="font-medium text-text-primary dark:text-dark-text-primary">{form.tahun}</span></div>
+            <div>Target / Periode: <span className="font-medium text-text-primary dark:text-dark-text-primary">{form.target_sampel} sampel</span></div>
           </div>
         </div>
       </Modal>
@@ -165,17 +199,25 @@ export default function AlokasiTahunanModal({ onClose, onSaved }) {
 
   // ── Form ───────────────────────────────────────────────────────────────────
   return (
-    <Modal isOpen onClose={onClose} title="Alokasi Tugas Tahunan" size="xl"
+    <Modal
+      isOpen
+      onClose={onClose}
+      title="Alokasi Tugas Tahunan"
+      size="2xl"
       footer={
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between w-full">
           <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
-            {previewRows.length > 0 && jenisPeriode
-              ? `${previewRows.length} periode akan di-generate`
-              : 'Pilih survei untuk melihat preview periode'}
+            {previewRows.length} periode akan di-generate
           </p>
           <div className="flex gap-2">
-            <button onClick={onClose} className="btn-secondary text-sm px-4 py-2">Batal</button>
-            <button onClick={handleSubmit} disabled={saving} className="btn-primary text-sm px-4 py-2 disabled:opacity-60">
+            <button type="button" onClick={onClose} className="btn-ghost text-sm px-4 py-2">
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={saving || !form.survei_id || !form.petugas_id || !form.kegiatan_id || previewRows.length === 0}
+              className="btn-primary text-sm px-5 py-2">
               {saving ? 'Memproses...' : `Generate ${previewRows.length} Tugas`}
             </button>
           </div>
@@ -195,30 +237,50 @@ export default function AlokasiTahunanModal({ onClose, onSaved }) {
           </FormField>
 
           {jenisPeriode && (
-            <div className="flex gap-3 text-xs">
-              <span className="px-2 py-1 rounded-lg bg-navy/5 dark:bg-dark-navy/10 text-text-secondary dark:text-dark-text-secondary capitalize">
-                📅 {jenisPeriode}
+            <div className="flex gap-2 text-xs flex-wrap items-center">
+              <span className="px-2 py-1 rounded-lg bg-navy/5 dark:bg-dark-navy/10 text-text-secondary dark:text-dark-text-secondary capitalize font-medium">
+                {jenisPeriode === 'tahunan' && bulanMulai && bulanSelesai
+                  ? `📅 Tahunan (${BULAN_NAMES[bulanMulai]}–${BULAN_NAMES[bulanSelesai]})`
+                  : `📅 ${jenisPeriode}`}
               </span>
-              {deadlineHari && (
+              {jenisPeriode === 'mingguan' ? (
+                <>
+                  {deadlineHari && (
+                    <span className="px-2 py-1 rounded-lg bg-accent-orange/10 text-accent-orange dark:text-dark-accent-orange">
+                      ⏰ Mg1: Tgl {deadlineHari}
+                    </span>
+                  )}
+                  {deadlineHariMg2 && (
+                    <span className="px-2 py-1 rounded-lg bg-accent-orange/10 text-accent-orange dark:text-dark-accent-orange">
+                      ⏰ Mg2: Tgl {deadlineHariMg2}
+                    </span>
+                  )}
+                </>
+              ) : deadlineHari ? (
                 <span className="px-2 py-1 rounded-lg bg-accent-orange/10 text-accent-orange dark:text-dark-accent-orange">
-                  ⏰ Deadline: Tgl {deadlineHari}
+                  ⏰ Deadline: Tgl {deadlineHari} {jenisPeriode === 'tahunan' && bulanSelesai ? BULAN_NAMES[bulanSelesai] : ''}
                 </span>
-              )}
+              ) : null}
             </div>
           )}
 
-          <FormField label="Kecamatan" required>
+          <FormField label="Kecamatan (Opsional)">
             <Select value={form.wilayah_kecamatan}
-              onChange={(e) => { f('wilayah_kecamatan', e.target.value); f('wilayah_id', ''); }}>
-              <option value="">-- Pilih Kecamatan --</option>
-              {kecamatanList.map(k => <option key={k}>{k}</option>)}
+              onChange={(e) => { 
+                const val = e.target.value;
+                f('wilayah_kecamatan', val); 
+                f('wilayah_id', ''); 
+              }}>
+              <option value="">-- Pilih Kecamatan / Non-Wilayah --</option>
+              <option value="__none__">🌐 Lintas Wilayah / Seluruh Kabupaten (Non-Wilayah)</option>
+              {kecamatanList.map(k => <option key={k} value={k}>{k}</option>)}
             </Select>
           </FormField>
 
-          <FormField label="Desa / Kelurahan" required>
+          <FormField label="Desa / Kelurahan">
             <Select value={form.wilayah_id} onChange={(e) => f('wilayah_id', e.target.value)}
-              disabled={!form.wilayah_kecamatan}>
-              <option value="">-- Pilih Desa --</option>
+              disabled={!form.wilayah_kecamatan || form.wilayah_kecamatan === '__none__'}>
+              <option value="">{form.wilayah_kecamatan === '__none__' ? '— Seluruh Wilayah / Non-Wilayah —' : '-- Pilih Desa --'}</option>
               {desaList.map(w => <option key={w.id} value={w.id}>{w.desa_kelurahan}</option>)}
             </Select>
           </FormField>
@@ -292,6 +354,61 @@ export default function AlokasiTahunanModal({ onClose, onSaved }) {
           )}
         </div>
       </div>
+
+      {/* ── Dialog Konfirmasi Alokasi Tambahan ── */}
+      {confirmDialog && (
+        <Modal
+          isOpen
+          onClose={() => setConfirmDialog(null)}
+          title="Konfirmasi Penugasan Tambahan"
+          size="sm"
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="btn-ghost text-sm px-4 py-2"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmDialog(null);
+                  handleSubmit(true);
+                }}
+                disabled={saving}
+                className="btn-primary text-sm px-4 py-2"
+              >
+                {saving ? 'Memproses...' : 'Ya, Tetap Tambahkan'}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3 py-1">
+            <div className="p-3.5 rounded-xl bg-accent-orange/10 border border-accent-orange/20 dark:border-dark-accent-orange/20 text-accent-orange dark:text-dark-accent-orange flex items-start gap-3">
+              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+              </svg>
+              <div className="text-xs text-text-primary dark:text-dark-text-primary space-y-1">
+                <p className="font-semibold text-accent-orange dark:text-dark-accent-orange text-sm">
+                  Terdeteksi Tugas Sebelumnya
+                </p>
+                <p>
+                  Petugas ini sudah memiliki <strong>{confirmDialog.existing_count} tugas</strong> terdaftar pada survei, wilayah, dan tahun ini.
+                </p>
+                <p className="text-text-secondary dark:text-dark-text-secondary">
+                  Pemeriksa sebelumnya: <strong>{confirmDialog.existing_pemeriksa}</strong>
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
+              Apakah Anda ingin tetap mengalokasikan tugas ini sebagai <strong>penugasan / sampel tambahan</strong>?
+            </p>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }

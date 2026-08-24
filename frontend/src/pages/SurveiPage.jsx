@@ -313,7 +313,22 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
 
           {/* ── Tab: Data Petugas ───────────────────────────────────────────── */}
           {tab === 'petugas' && (() => {
-            const filteredPetugas = (petugasData || []).filter((r) => {
+            const sortedPetugas = [...(petugasData || [])].sort((a, b) => {
+              if (a.tahun !== b.tahun) return (b.tahun || 0) - (a.tahun || 0);
+              const getWeight = (r) => {
+                if (r.bulan) return r.bulan * 10 + (r.minggu_ke || 0);
+                if (r.triwulan_ke) return r.triwulan_ke * 30;
+                return 0;
+              };
+              const diff = getWeight(a) - getWeight(b);
+              if (diff !== 0) return diff;
+              if (a.deadline && b.deadline && a.deadline !== b.deadline) {
+                return a.deadline.localeCompare(b.deadline);
+              }
+              return (a.desa_kelurahan || '').localeCompare(b.desa_kelurahan || '');
+            });
+
+            const filteredPetugas = sortedPetugas.filter((r) => {
               if (!petugasSearch.trim()) return true;
               const q = petugasSearch.toLowerCase();
               return (

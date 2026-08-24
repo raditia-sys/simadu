@@ -17,7 +17,7 @@ const BADGE_COLORS = {
 
 const EMPTY_FORM = {
   nama_survei: '', kode_survei: '', kategori: 'Distribusi', jenis_periode: 'bulanan',
-  deadline_hari: '', tautan_entri_data: '', materi_dokumen: '',
+  deadline_hari: '', deadline_hari_mg2: '', tautan_entri_data: '', materi_dokumen: '',
   bulan_mulai: '', bulan_selesai: '',
   tanggal_mulai_koleksi: '', tanggal_selesai_koleksi: '',
   tanggal_mulai_mg2: '', tanggal_selesai_mg2: '',
@@ -57,6 +57,7 @@ export default function MasterSurveiPage() {
       kategori:                row.kategori,
       jenis_periode:           row.jenis_periode,
       deadline_hari:           row.deadline_hari ?? '',
+      deadline_hari_mg2:       row.deadline_hari_mg2 ?? '',
       tautan_entri_data:       row.tautan_entri_data ?? '',
       materi_dokumen:          row.materi_dokumen ?? '',
       bulan_mulai:             row.bulan_mulai ?? '',
@@ -73,7 +74,10 @@ export default function MasterSurveiPage() {
   async function handleSave() {
     if (!form.nama_survei.trim()) { setFormError('Nama survei wajib diisi.'); return; }
     if (form.deadline_hari !== '' && (parseInt(form.deadline_hari) < 1 || parseInt(form.deadline_hari) > 31)) {
-      setFormError('Deadline hari harus antara 1-31.'); return;
+      setFormError('Deadline hari Minggu 1 harus antara 1-31.'); return;
+    }
+    if (form.deadline_hari_mg2 !== '' && (parseInt(form.deadline_hari_mg2) < 1 || parseInt(form.deadline_hari_mg2) > 31)) {
+      setFormError('Deadline hari Minggu 2 harus antara 1-31.'); return;
     }
     if (form.jenis_periode === 'tahunan') {
       const bm = form.bulan_mulai !== '' ? parseInt(form.bulan_mulai) : null;
@@ -87,6 +91,7 @@ export default function MasterSurveiPage() {
       nama_survei:             form.nama_survei.trim(),
       kode_survei:             form.kode_survei.trim() || null,
       deadline_hari:           form.deadline_hari !== '' ? parseInt(form.deadline_hari) : null,
+      deadline_hari_mg2:       form.deadline_hari_mg2 !== '' ? parseInt(form.deadline_hari_mg2) : null,
       bulan_mulai:             form.bulan_mulai !== '' ? parseInt(form.bulan_mulai) : null,
       bulan_selesai:           form.bulan_selesai !== '' ? parseInt(form.bulan_selesai) : null,
       tanggal_mulai_koleksi:   form.tanggal_mulai_koleksi !== '' ? parseInt(form.tanggal_mulai_koleksi) : null,
@@ -110,11 +115,13 @@ export default function MasterSurveiPage() {
   }
 
   const columns = [
-    { key: 'kode_survei', label: 'Kode',
-      render: (row) => row.kode_survei
-        ? <span className="px-2 py-0.5 rounded-md text-xs font-mono font-semibold bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy">{row.kode_survei}</span>
-        : <span className="text-text-secondary dark:text-dark-text-secondary text-xs">—</span> },
-    { key: 'nama_survei', label: 'Nama Survei' },
+    { key: 'nama_survei', label: 'Nama Survei',
+      render: (row) => (
+        <div>
+          <p className="font-medium text-text-primary dark:text-dark-text-primary text-sm">{row.nama_survei}</p>
+          {row.kode_survei && <p className="text-xs text-text-secondary dark:text-dark-text-secondary font-mono">{row.kode_survei}</p>}
+        </div>
+      )},
     { key: 'kategori', label: 'Kategori',
       render: (row) => <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${BADGE_COLORS[row.kategori] ?? ''}`}>{row.kategori}</span> },
     { key: 'jenis_periode', label: 'Periode',
@@ -129,9 +136,19 @@ export default function MasterSurveiPage() {
         ? <span className="text-xs font-mono">tgl {row.tanggal_mulai_koleksi}–{row.tanggal_selesai_koleksi}</span>
         : <span className="text-text-secondary dark:text-dark-text-secondary text-xs">—</span> },
     { key: 'deadline_hari', label: 'Deadline Entri',
-      render: (row) => row.deadline_hari
-        ? <span className="text-xs font-mono text-accent-orange dark:text-dark-accent-orange font-semibold">Tgl {row.deadline_hari}</span>
-        : <span className="text-text-secondary dark:text-dark-text-secondary text-xs">-</span> },
+      render: (row) => {
+        if (row.jenis_periode === 'mingguan') {
+          return (
+            <div className="text-xs font-mono text-accent-orange dark:text-dark-accent-orange font-semibold space-y-0.5">
+              <div>Mg1: {row.deadline_hari ? `Tgl ${row.deadline_hari}` : '—'}</div>
+              <div>Mg2: {row.deadline_hari_mg2 ? `Tgl ${row.deadline_hari_mg2}` : '—'}</div>
+            </div>
+          );
+        }
+        return row.deadline_hari
+          ? <span className="text-xs font-mono text-accent-orange dark:text-dark-accent-orange font-semibold">Tgl {row.deadline_hari}</span>
+          : <span className="text-text-secondary dark:text-dark-text-secondary text-xs">-</span>;
+      }},
     { key: 'tautan_entri_data', label: 'Tautan Entri',
       render: (row) => row.tautan_entri_data
         ? <a href={row.tautan_entri_data} target="_blank" rel="noreferrer" className="text-navy dark:text-dark-navy text-xs underline underline-offset-2 hover:opacity-70">Buka</a>
@@ -246,10 +263,26 @@ export default function MasterSurveiPage() {
             )}
           </div>
 
-          <FormField label="Deadline Entri Data (Hari ke-)" hint="Misal: 15 = deadline setiap tanggal 15 per periode. Kosongkan jika tidak ada deadline rutin.">
-            <Input id="input-deadline-hari" type="number" min="1" max="31"
-              value={form.deadline_hari} onChange={(e) => f('deadline_hari', e.target.value)} placeholder="Contoh: 15" />
-          </FormField>
+          {form.jenis_periode === 'mingguan' ? (
+            <div className="grid grid-cols-2 gap-4 p-3 rounded-xl bg-navy/5 dark:bg-dark-navy/5 border border-border-soft dark:border-dark-border-soft">
+              <div className="col-span-2 text-xs font-medium text-text-secondary dark:text-dark-text-secondary -mb-1">
+                ⏰ Deadline Entri Data per Minggu
+              </div>
+              <FormField label="Deadline Minggu 1 (Hari ke-)" hint="Misal: 15 = deadline tgl 15 tiap bulan">
+                <Input id="input-deadline-hari" type="number" min="1" max="31"
+                  value={form.deadline_hari} onChange={(e) => f('deadline_hari', e.target.value)} placeholder="Contoh: 15" />
+              </FormField>
+              <FormField label="Deadline Minggu 2 (Hari ke-)" hint="Misal: 25 = deadline tgl 25 tiap bulan">
+                <Input id="input-deadline-hari-mg2" type="number" min="1" max="31"
+                  value={form.deadline_hari_mg2} onChange={(e) => f('deadline_hari_mg2', e.target.value)} placeholder="Contoh: 25" />
+              </FormField>
+            </div>
+          ) : (
+            <FormField label="Deadline Entri Data (Hari ke-)" hint="Misal: 15 = deadline setiap tanggal 15 per periode. Kosongkan jika tidak ada deadline rutin.">
+              <Input id="input-deadline-hari" type="number" min="1" max="31"
+                value={form.deadline_hari} onChange={(e) => f('deadline_hari', e.target.value)} placeholder="Contoh: 15" />
+            </FormField>
+          )}
           <FormField label="Tautan Entri Data" hint="URL ke sistem entri data eksternal.">
             <Input id="input-tautan" type="url" value={form.tautan_entri_data} onChange={(e) => f('tautan_entri_data', e.target.value)} placeholder="https://..." />
           </FormField>

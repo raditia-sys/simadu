@@ -21,6 +21,8 @@ class MasterSurveiController
 
         $deadlineHari = isset($body['deadline_hari']) && $body['deadline_hari'] !== ''
                         ? max(1, min(31, (int)$body['deadline_hari'])) : null;
+        $deadlineHariMg2 = isset($body['deadline_hari_mg2']) && $body['deadline_hari_mg2'] !== ''
+                        ? max(1, min(31, (int)$body['deadline_hari_mg2'])) : null;
 
         // Bulan mulai/selesai (hanya untuk tahunan, nullable)
         $bulanMulai   = isset($body['bulan_mulai'])   && $body['bulan_mulai']   !== '' ? max(1, min(12, (int)$body['bulan_mulai']))   : null;
@@ -47,6 +49,7 @@ class MasterSurveiController
             'tautan_entri_data'       => $tautanEntri ?: null,
             'materi_dokumen'          => $materiDok ?: null,
             'deadline_hari'           => $deadlineHari,
+            'deadline_hari_mg2'       => $deadlineHariMg2,
             'bulan_mulai'             => $bulanMulai,
             'bulan_selesai'           => $bulanSelesai,
             'tanggal_mulai_koleksi'   => $tglMulai,
@@ -62,7 +65,7 @@ class MasterSurveiController
         $pdo    = Database::connect();
         $search = query('q', '');
 
-        $cols = 'id, kode_survei, nama_survei, kategori, jenis_periode, deadline_hari,
+        $cols = 'id, kode_survei, nama_survei, kategori, jenis_periode, deadline_hari, deadline_hari_mg2,
                  tautan_entri_data, materi_dokumen,
                  bulan_mulai, bulan_selesai,
                  tanggal_mulai_koleksi, tanggal_selesai_koleksi,
@@ -107,15 +110,15 @@ class MasterSurveiController
         $pdo = Database::connect();
         $stmt = $pdo->prepare(
             'INSERT INTO master_survei
-             (nama_survei, kode_survei, kategori, jenis_periode, deadline_hari,
+             (nama_survei, kode_survei, kategori, jenis_periode, deadline_hari, deadline_hari_mg2,
               tautan_entri_data, materi_dokumen,
               bulan_mulai, bulan_selesai,
               tanggal_mulai_koleksi, tanggal_selesai_koleksi,
               tanggal_mulai_mg2, tanggal_selesai_mg2)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
-            $namaSurvei, $f['kode_survei'], $kategori, $jenisPeriode, $f['deadline_hari'],
+            $namaSurvei, $f['kode_survei'], $kategori, $jenisPeriode, $f['deadline_hari'], $f['deadline_hari_mg2'],
             $f['tautan_entri_data'], $f['materi_dokumen'],
             $f['bulan_mulai'], $f['bulan_selesai'],
             $f['tanggal_mulai_koleksi'], $f['tanggal_selesai_koleksi'],
@@ -160,14 +163,14 @@ class MasterSurveiController
         $f = self::extractFields($body);
         $pdo->prepare(
             'UPDATE master_survei
-             SET nama_survei = ?, kode_survei = ?, kategori = ?, jenis_periode = ?, deadline_hari = ?,
+             SET nama_survei = ?, kode_survei = ?, kategori = ?, jenis_periode = ?, deadline_hari = ?, deadline_hari_mg2 = ?,
                  tautan_entri_data = ?, materi_dokumen = ?,
                  bulan_mulai = ?, bulan_selesai = ?,
                  tanggal_mulai_koleksi = ?, tanggal_selesai_koleksi = ?,
                  tanggal_mulai_mg2 = ?, tanggal_selesai_mg2 = ?
              WHERE id = ?'
         )->execute([
-            clean($body['nama_survei']), $f['kode_survei'], $kategori, $jenisPeriode, $f['deadline_hari'],
+            clean($body['nama_survei']), $f['kode_survei'], $kategori, $jenisPeriode, $f['deadline_hari'], $f['deadline_hari_mg2'],
             $f['tautan_entri_data'], $f['materi_dokumen'],
             $f['bulan_mulai'], $f['bulan_selesai'],
             $f['tanggal_mulai_koleksi'], $f['tanggal_selesai_koleksi'],

@@ -42,15 +42,18 @@ const IconSelesai = () => (
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const p = payload[0];
+  const item = p.payload || {};
   return (
-    <div className="bg-surface dark:bg-dark-surface border border-border-soft dark:border-dark-border-soft rounded-xl shadow-soft-lg px-3.5 py-2.5 text-xs">
-      <p className="font-semibold text-text-primary dark:text-dark-text-primary mb-1 max-w-40 break-words">{label}</p>
+    <div className="bg-surface dark:bg-dark-surface border border-border-soft dark:border-dark-border-soft rounded-xl shadow-soft-lg px-3.5 py-2.5 text-xs max-w-xs">
+      <p className="font-semibold text-text-primary dark:text-dark-text-primary mb-1 leading-snug">
+        {item.nama_survei ? `${item.nama_survei} (${item.label || item.kode_survei})` : label}
+      </p>
       <p className="text-text-secondary dark:text-dark-text-secondary">
         Capaian: <span className="font-mono font-semibold text-text-primary dark:text-dark-text-primary">{p.value}%</span>
       </p>
-      {p.payload && (
-        <p className="text-text-secondary dark:text-dark-text-secondary">
-          {p.payload.total_selesai} / {p.payload.total_target} sampel
+      {item.total_target !== undefined && (
+        <p className="text-text-secondary dark:text-dark-text-secondary mt-0.5">
+          Realisasi: <span className="font-mono text-text-primary dark:text-dark-text-primary font-medium">{item.total_selesai} / {item.total_target} sampel</span> ({item.total_tugas} tugas)
         </p>
       )}
     </div>
@@ -253,15 +256,25 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height={280}>
               <BarChart
                 data={chartData}
-                margin={{ top: 4, right: 8, left: -16, bottom: chartData.length > 8 ? 48 : 16 }}
-                barSize={chartData.length > 12 ? 12 : 20}
+                margin={{
+                  top: 4,
+                  right: 8,
+                  left: -16,
+                  bottom: chartView === 'survei' ? 12 : chartData.length > 8 ? 48 : 16,
+                }}
+                barSize={chartData.length > 12 ? 14 : 22}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="opacity-5" />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 11, fill: 'currentColor', className: 'text-text-secondary' }}
-                  angle={chartData.length > 6 ? -35 : 0}
-                  textAnchor={chartData.length > 6 ? 'end' : 'middle'}
+                  tick={{
+                    fontSize: chartView === 'survei' ? 11 : 11,
+                    fill: 'currentColor',
+                    fontWeight: chartView === 'survei' ? 600 : 400,
+                    className: 'text-text-secondary dark:text-dark-text-secondary',
+                  }}
+                  angle={chartView === 'survei' ? 0 : chartData.length > 6 ? -35 : 0}
+                  textAnchor={chartView === 'survei' ? 'middle' : chartData.length > 6 ? 'end' : 'middle'}
                   interval={0}
                 />
                 <YAxis

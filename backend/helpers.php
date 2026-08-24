@@ -21,6 +21,9 @@ function respond(bool $success, mixed $data = null, string $message = '', int $c
 // ─── Request body parser ──────────────────────────────────────────────────────
 function requestBody(): array
 {
+    if (PHP_SAPI === 'cli') {
+        return !empty($_POST) ? $_POST : [];
+    }
     $raw = file_get_contents('php://input');
     if ($raw !== '' && $raw !== false) {
         $decoded = json_decode($raw, true);
