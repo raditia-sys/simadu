@@ -61,7 +61,7 @@ class DokumenController
 
         $stmt = $pdo->prepare("
             SELECT
-                d.id, d.nama_file, d.kategori, d.deskripsi, d.uploaded_at,
+                d.id, d.nama_file, d.path, d.kategori, d.deskripsi, d.uploaded_at,
                 d.ukuran_byte, d.mime_type, d.survei_id,
                 ms.nama_survei,
                 u.nama AS uploaded_by_nama
@@ -207,12 +207,6 @@ class DokumenController
             $userId,
         ]);
         $id = (int)$pdo->lastInsertId();
-
-        // Jika survei_id diisi dan tautan_entri_data di master_survei masih kosong, perbarui otomatis
-        if ($surveiId) {
-            $pdo->prepare("UPDATE master_survei SET tautan_entri_data = ? WHERE id = ? AND (tautan_entri_data IS NULL OR tautan_entri_data = '')")
-                ->execute([$url, $surveiId]);
-        }
 
         logActivity($pdo, $userId, 'tambah_link_dokumen', 'dokumen', $id, 'Tambah link dokumen: ' . $namaFile);
 

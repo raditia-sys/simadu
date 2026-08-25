@@ -35,6 +35,15 @@ function formatBytes(bytes, mime = '', path = '') {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function getValidUrl(url = '') {
+  if (!url) return '#';
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return 'https://' + trimmed;
+}
+
 // ─── Edit modal ───────────────────────────────────────────────────────────────
 function EditDokumenModal({ doc, kategoriList, surveys, onClose, onSaved }) {
   const isLink = doc.mime_type === 'text/url' || doc.path?.startsWith('http');
@@ -442,7 +451,7 @@ export default function ManajemenDokumenPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <a href={isLink ? doc.path : `/api/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
+                            <a href={isLink ? getValidUrl(doc.path) : `/api/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
                               className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all" title={isLink ? "Buka Link" : "Download"}>
                               {isLink ? (
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>

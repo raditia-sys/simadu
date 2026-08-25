@@ -24,6 +24,43 @@ const PERIODE_LABEL = {
 
 const BULAN_OPTS = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
+const KATEGORI_META = {
+  'Tautan Entri': { icon: '🔗', label: 'Tautan Entri' },
+  'Kuesioner':    { icon: '📋', label: 'Kuesioner' },
+  'Materi':       { icon: '📖', label: 'Materi' },
+  'Metodologi':   { icon: '🔬', label: 'Metodologi' },
+  'Pelatihan':    { icon: '🎓', label: 'Pelatihan' },
+  'SK/Surat':     { icon: '📜', label: 'SK/Surat' },
+  'Laporan':      { icon: '📊', label: 'Laporan' },
+  'Umum':         { icon: '📁', label: 'Umum' },
+};
+
+function getFileIcon(mime = '', path = '') {
+  if (mime.includes('pdf')) return '📄';
+  if (mime.includes('word') || mime.includes('document')) return '📝';
+  if (mime.includes('sheet') || mime.includes('excel')) return '📊';
+  if (mime.includes('presentation') || mime.includes('powerpoint')) return '📋';
+  if (mime.startsWith('image/')) return '🖼️';
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('7z')) return '🗜️';
+  return '📄';
+}
+
+function getValidUrl(url = '') {
+  if (!url) return '#';
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return 'https://' + trimmed;
+}
+
+function formatDocSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 /**
  * SurveiPage — Template dinamis untuk semua halaman Kegiatan Statistik & Sensus Ekonomi.
  *
@@ -138,6 +175,33 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
       if (res.success) setDokumen(res.data);
     });
   }, [survei, tab]);
+
+  // ── Kelompokkan dokumen per kategori ───────────────────────────────────────
+  const groupedDokumen = useMemo(() => {
+    const groups = {};
+    const standardOrder = ['Tautan Entri', 'Kuesioner', 'Materi', 'Metodologi', 'Pelatihan', 'SK/Surat', 'Laporan', 'Umum'];
+
+    (dokumen || []).forEach((doc) => {
+      const kat = doc.kategori || 'Umum';
+      if (!groups[kat]) groups[kat] = [];
+      groups[kat].push(doc);
+    });
+
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      const idxA = standardOrder.indexOf(a);
+      const idxB = standardOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    return sortedKeys.map((k) => ({
+      kategori: k,
+      items: groups[k],
+      meta: KATEGORI_META[k] || { icon: '📁', label: k },
+    }));
+  }, [dokumen]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -531,108 +595,127 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
 
           {/* ── Tab: Materi & Dokumen ───────────────────────────────────────── */}
           {tab === 'dokumen' && (
-            <div className="card p-5 space-y-5">
-              {/* Tautan Entri Data Utama */}
+            <div className="card p-5 space-y-6">
+              {/* Tautan Entri Data Utama dari Master Survei (jika ada) */}
               {survei.tautan_entri_data && (
-                <div className="p-4 rounded-2xl border border-border-soft dark:border-dark-border-soft flex items-center justify-between gap-4 bg-navy/4 dark:bg-dark-navy/8">
-                  <div className="min-w-0">
+                <a
+                  href={getValidUrl(survei.tautan_entri_data)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group p-4 rounded-2xl border border-navy/20 dark:border-dark-navy/30 bg-navy/4 dark:bg-dark-navy/8 hover:border-navy/40 dark:hover:border-dark-navy/50 hover:shadow-soft-md transition-all flex items-center justify-between gap-4 flex-wrap cursor-pointer"
+                >
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-base">🔗</span>
-                      <p className="text-sm font-semibold text-text-primary dark:text-dark-text-primary">
+                      <span className="text-lg group-hover:scale-105 transition-transform">🔗</span>
+                      <p className="text-sm font-bold text-text-primary dark:text-dark-text-primary group-hover:text-navy dark:group-hover:text-dark-navy transition-colors">
                         Tautan Entri Data Utama ({survei.nama_survei})
                       </p>
                     </div>
-                    <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5 truncate max-w-xs md:max-w-md font-mono">
+                    <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5 truncate font-mono">
                       {survei.tautan_entri_data}
                     </p>
                   </div>
-                  <a href={survei.tautan_entri_data} target="_blank" rel="noopener noreferrer"
-                    className="btn-primary text-sm flex items-center gap-1.5 flex-shrink-0">
+                  <span className="btn-primary text-xs px-3.5 py-2 flex items-center gap-1.5 flex-shrink-0 pointer-events-none group-hover:shadow-sm">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
-                    Buka Tautan
-                  </a>
-                </div>
+                    Buka Tautan Utama ↗
+                  </span>
+                </a>
               )}
 
-              {/* Tautan / Link Entri Tambahan dari Manajemen Dokumen */}
-              {dokumen.filter(d => d.mime_type === 'text/url' || d.path?.startsWith('http')).length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-3 flex items-center gap-2">
-                    <span>🔗</span> Tautan Entri & Link Terkait ({dokumen.filter(d => d.mime_type === 'text/url' || d.path?.startsWith('http')).length})
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {dokumen.filter(d => d.mime_type === 'text/url' || d.path?.startsWith('http')).map((doc) => (
-                      <div key={doc.id} className="p-3.5 rounded-xl border border-border-soft dark:border-dark-border-soft flex items-center justify-between gap-3 bg-surface dark:bg-dark-surface hover:border-navy/30 transition-all">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-base">🔗</span>
-                            <p className="text-sm font-medium text-text-primary dark:text-dark-text-primary truncate">{doc.nama_file}</p>
-                          </div>
-                          <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5 font-mono truncate">{doc.path}</p>
-                          {doc.deskripsi && (
-                            <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary mt-0.5 line-clamp-1">{doc.deskripsi}</p>
-                          )}
-                        </div>
-                        <a href={doc.path} target="_blank" rel="noopener noreferrer"
-                          className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1 flex-shrink-0">
-                          Buka Link ↗
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Materi dari field materi_dokumen */}
+              {/* Panduan / Materi Teknis Teks dari Master Survei (jika ada) */}
               {survei.materi_dokumen && (
-                <div>
-                  <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-2 flex items-center gap-2">
-                    <span>📖</span> Panduan & Materi Teknis
-                  </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📖</span>
+                    <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary">
+                      Panduan & Materi Teknis Survei
+                    </h3>
+                  </div>
                   <div className="p-4 rounded-2xl border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface text-sm text-text-primary dark:text-dark-text-primary leading-relaxed whitespace-pre-line">
                     {survei.materi_dokumen}
                   </div>
                 </div>
               )}
 
-              {/* Dokumen File Fisik Terlampir */}
-              {dokumen.filter(d => d.mime_type !== 'text/url' && !d.path?.startsWith('http')).length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-3 flex items-center gap-2">
-                    <span>📄</span> Dokumen File Terlampir ({dokumen.filter(d => d.mime_type !== 'text/url' && !d.path?.startsWith('http')).length})
-                  </h3>
+              {/* Kelompok Dokumen & Tautan Berdasarkan Kategori */}
+              {groupedDokumen.map((group) => (
+                <div key={group.kategori} className="space-y-3">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-border-soft dark:border-dark-border-soft">
+                    <span className="text-base">{group.meta.icon}</span>
+                    <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary">
+                      {group.kategori}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-navy/8 dark:bg-dark-navy/15 text-navy dark:text-dark-navy font-mono font-medium">
+                      {group.items.length}
+                    </span>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {dokumen.filter(d => d.mime_type !== 'text/url' && !d.path?.startsWith('http')).map((doc) => (
-                      <div key={doc.id} className="p-3 rounded-xl border border-border-soft dark:border-dark-border-soft flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-navy/8 dark:bg-dark-navy/15 flex-shrink-0">
-                          <svg className="w-5 h-5 text-navy dark:text-dark-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                          </svg>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-text-primary dark:text-dark-text-primary truncate">{doc.nama_file}</p>
-                          <p className="text-xs text-text-secondary dark:text-dark-text-secondary">{doc.kategori}</p>
-                        </div>
-                        <a href={`/api/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all flex-shrink-0" title="Download">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                          </svg>
+                    {group.items.map((doc) => {
+                      const isLink = doc.mime_type === 'text/url' || doc.path?.startsWith('http://') || doc.path?.startsWith('https://');
+
+                      return (
+                        <a
+                          key={doc.id}
+                          href={isLink ? getValidUrl(doc.path) : `/api/dokumen/download/${doc.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group p-3.5 rounded-2xl border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface hover:border-navy/40 dark:hover:border-dark-navy/50 hover:shadow-soft-md transition-all flex items-center justify-between gap-3 shadow-soft-xs cursor-pointer"
+                        >
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
+                            <div className="p-2 rounded-xl bg-navy/6 dark:bg-dark-navy/12 text-base flex-shrink-0 group-hover:scale-105 transition-transform">
+                              {isLink ? '🔗' : getFileIcon(doc.mime_type, doc.path)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-text-primary dark:text-dark-text-primary group-hover:text-navy dark:group-hover:text-dark-navy transition-colors truncate" title={doc.nama_file}>
+                                {doc.nama_file}
+                              </p>
+                              {isLink ? (
+                                <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5 font-mono truncate" title={doc.path}>
+                                  {doc.path}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5">
+                                  {formatDocSize(doc.ukuran_file) || 'File Terlampir'}
+                                </p>
+                              )}
+                              {doc.deskripsi && (
+                                <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary mt-0.5 line-clamp-1" title={doc.deskripsi}>
+                                  {doc.deskripsi}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Tombol Visual Aksi */}
+                          {isLink ? (
+                            <span className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1 flex-shrink-0 pointer-events-none group-hover:shadow-sm">
+                              Buka Tautan ↗
+                            </span>
+                          ) : (
+                            <span
+                              className="p-2 rounded-xl text-text-secondary group-hover:text-navy group-hover:bg-navy/8 dark:group-hover:text-dark-navy dark:group-hover:bg-dark-navy/15 transition-all flex-shrink-0"
+                              title="Unduh File"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                            </span>
+                          )}
                         </a>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
-              )}
+              ))}
 
               {/* Status Kosong */}
               {dokumen.length === 0 && !survei.tautan_entri_data && !survei.materi_dokumen && (
-                <div className="py-8 text-center">
-                  <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
-                    Belum ada materi, tautan entri, atau dokumen terlampir untuk survei ini.
-                  </p>
+                <div className="py-12 text-center text-sm text-text-secondary dark:text-dark-text-secondary">
+                  <span className="text-3xl block mb-2">📁</span>
+                  Belum ada materi, tautan entri, atau dokumen terlampir untuk survei ini.
                 </div>
               )}
             </div>
