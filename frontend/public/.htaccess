@@ -1,18 +1,17 @@
-﻿<IfModule mod_rewrite.c>
+<IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /
+  RewriteBase /simadu/
 
-  # Jangan rewrite jika file atau folder fisik ada
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
+  # 1. Jangan rewrite jika file atau folder fisik ada (JS, CSS, images, dll)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
 
-  # Jangan rewrite request ke API atau backend atau uploads
-  RewriteCond %{REQUEST_URI} !^/api/
-  RewriteCond %{REQUEST_URI} !^/backend/
-  RewriteCond %{REQUEST_URI} !^/uploads/
+  # 2. Route uploads
+  RewriteRule ^uploads/(.*)$ backend/uploads/$1 [L]
 
-  # Fallback ke index.html untuk Single Page Application (React Router)
-  RewriteRule ^ index.html [L]
+  # 3. Route API dan semua request SPA lainnya ke index.php
+  RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
 <IfModule mod_headers.c>
