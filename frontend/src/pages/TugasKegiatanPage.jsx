@@ -28,7 +28,6 @@ const KATEGORI_BADGE = {
   Sensus:     'bg-status-neutral/15 text-status-neutral dark:bg-dark-status-neutral/20 dark:text-dark-status-neutral',
 };
 
-// Definisi kolom tabel
 const ALL_COLUMNS = [
   { key: 'survei',     label: 'Survei',    alwaysVisible: true },
   { key: 'wilayah',    label: 'Wilayah' },
@@ -41,6 +40,7 @@ const ALL_COLUMNS = [
   { key: 'progress',   label: 'Progres' },
   { key: 'status',     label: 'Status',    alwaysVisible: true },
   { key: 'deadline',   label: 'Deadline' },
+  { key: 'catatan',    label: 'Catatan',   defaultVisible: false },
 ];
 
 // ─── Filter state awal ────────────────────────────────────────────────────────
@@ -168,6 +168,7 @@ function FilterRow({ filters, onChange, surveys, wilayahs, petugasList, kegiatan
             onChange={(e) => onChange('deadline_sampai', e.target.value)} title="Deadline sampai" />
         </td>
       )}
+      {visible.catatan && <td className="px-1.5 py-1" />}
       <td className="px-1.5 py-1 w-16" /> {/* aksi col */}
     </tr>
   );
@@ -204,8 +205,8 @@ export default function TugasKegiatanPage() {
   const [deleting,     setDeleting]     = useState(false);
   const [toast,      setToast]        = useState('');
 
-  // ── Column visibility ───────────────────────────────────────────────────────
-  const { visible, toggle, reset: resetCols } = useColumnVisibility('tugas', ALL_COLUMNS);
+  // ── Kolom visibility ───────────────────────────────────────────────────────
+  const { visible, toggle, reset: resetCols } = useColumnVisibility('tugas_v2', ALL_COLUMNS);
 
   const fileInputRef = useRef(null);
 
@@ -492,18 +493,19 @@ export default function TugasKegiatanPage() {
                     />
                   </th>
                 )}
-                {visible.survei && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Survei</th>}
-                {visible.wilayah && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Wilayah</th>}
-                {visible.petugas && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Petugas</th>}
-                {visible.peran && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Peran</th>}
-                {visible.pemeriksa && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Pemeriksa</th>}
-                {visible.periode && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Periode</th>}
-                {visible.target && <th className="px-1.5 py-2.5 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Target</th>}
-                {visible.selesai && <th className="px-1.5 py-2.5 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Selesai</th>}
+                {visible.survei && <th className="px-2 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Survei</th>}
+                {visible.wilayah && <th className="px-2 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Wilayah</th>}
+                {visible.petugas && <th className="px-2 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Petugas</th>}
+                {visible.peran && <th className="px-2 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Peran</th>}
+                {visible.pemeriksa && <th className="px-2 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Pemeriksa</th>}
+                {visible.periode && <th className="px-2 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Periode</th>}
+                {visible.target && <th className="px-1.5 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Target</th>}
+                {visible.selesai && <th className="px-1.5 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Selesai</th>}
                 {visible.progress && <th className="px-1 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Progres</th>}
                 {visible.status && <th className="px-1.5 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Status</th>}
-                {visible.deadline && <th className="px-2 py-2.5 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Deadline</th>}
-                <th className="px-1.5 py-2.5 text-right text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider w-16">Aksi</th>
+                {visible.deadline && <th className="px-2 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Deadline</th>}
+                {visible.catatan && <th className="px-2 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">Catatan</th>}
+                <th className="px-1.5 py-2.5 text-center text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider w-16">Aksi</th>
               </tr>
 
               {/* ── Filter Row ── */}
@@ -665,6 +667,19 @@ export default function TugasKegiatanPage() {
                       {visible.deadline && (
                         <td className="px-2 py-2 whitespace-nowrap">
                           <DeadlineBadge date={row.deadline} status={row.status} />
+                        </td>
+                      )}
+
+                      {/* Catatan */}
+                      {visible.catatan && (
+                        <td className="px-2 py-2 min-w-[120px] max-w-[180px]">
+                          {row.catatan ? (
+                            <p className="text-xs text-text-primary dark:text-dark-text-primary line-clamp-2" title={row.catatan}>
+                              {row.catatan}
+                            </p>
+                          ) : (
+                            <span className="text-xs text-text-secondary/50 dark:text-dark-text-secondary/50 italic">—</span>
+                          )}
                         </td>
                       )}
 

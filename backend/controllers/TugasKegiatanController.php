@@ -20,7 +20,7 @@ class TugasKegiatanController
         t.kegiatan_id, mk.nama AS nama_peran,
         t.pemeriksa_id, pm.nama AS nama_pemeriksa,
         t.tahun,       t.triwulan_ke,     t.bulan,            t.minggu_ke,
-        t.target_sampel, t.sampel_selesai, t.deadline,
+        t.target_sampel, t.sampel_selesai, t.catatan, t.deadline,
         t.created_by,  t.created_at,      t.updated_at
     ';
 
@@ -164,8 +164,8 @@ class TugasKegiatanController
             'INSERT INTO tugas_kegiatan
              (survei_id, wilayah_id, petugas_id, kegiatan_id, tahun,
               triwulan_ke, bulan, minggu_ke, target_sampel, sampel_selesai,
-              deadline, pemeriksa_id, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+              catatan, deadline, pemeriksa_id, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             (int)$body['survei_id'],   $wilayahId,
@@ -174,6 +174,7 @@ class TugasKegiatanController
             $periodeFields['triwulan_ke'], $periodeFields['bulan'], $periodeFields['minggu_ke'],
             (int)$body['target_sampel'],
             (int)($body['sampel_selesai'] ?? 0),
+            !empty($body['catatan']) ? trim((string)$body['catatan']) : null,
             $body['deadline'],
             $pemeriksaId,
             $user['id'],
@@ -439,14 +440,12 @@ class TugasKegiatanController
         $existing = $stmtE->fetch();
         if (!$existing) respond(false, null, 'Data tugas tidak ditemukan.', 404);
 
-        if ($user['role'] === 'admin' || (!isset($body['survei_id']) && isset($body['sampel_selesai']))) {
-            // Update hanya sampel_selesai
-            if (!isset($body['sampel_selesai'])) {
-                respond(false, null, 'Field yang diizinkan untuk diubah: sampel_selesai.', 422);
-            }
-            $selesai = max(0, (int)$body['sampel_selesai']);
-            $pdo->prepare('UPDATE tugas_kegiatan SET sampel_selesai = ?, updated_at = NOW() WHERE id = ?')
-                ->execute([$selesai, $id]);
+        if ($user['role'] === 'admin' || (!isset($body['survei_id']) && (isset($body['sampel_selesai']) || array_key_exists('catatan', $body)))) {
+            // Update sampel_selesai dan/atau catatan
+            $selesai = isset($body['sampel_selesai']) ? max(0, (int)$body['sampel_selesai']) : (int)$existing['sampel_selesai'];
+            $catatan = array_key_exists('catatan', $body) ? (trim((string)$body['catatan']) ?: null) : $existing['catatan'];
+            $pdo->prepare('UPDATE tugas_kegiatan SET sampel_selesai = ?, catatan = ?, updated_at = NOW() WHERE id = ?')
+                ->execute([$selesai, $catatan, $id]);
             logActivity($pdo, (int)$user['id'], 'update_selesai_tugas', 'tugas_kegiatan', $id, "sampel_selesai={$selesai}");
         } elseif ($user['role'] === 'superadmin') {
             // Superadmin: update semua field
@@ -474,11 +473,13 @@ class TugasKegiatanController
                 $pemeriksaId = (int)$body['pemeriksa_id'];
             }
 
+            $catatan = array_key_exists('catatan', $body) ? (trim((string)$body['catatan']) ?: null) : $existing['catatan'];
+
             $pdo->prepare(
                 'UPDATE tugas_kegiatan SET
                  survei_id=?, wilayah_id=?, petugas_id=?, kegiatan_id=?,
                  tahun=?, triwulan_ke=?, bulan=?, minggu_ke=?,
-                 target_sampel=?, sampel_selesai=?, deadline=?, pemeriksa_id=?, updated_at=NOW()
+                 target_sampel=?, sampel_selesai=?, catatan=?, deadline=?, pemeriksa_id=?, updated_at=NOW()
                  WHERE id=?'
             )->execute([
                 (int)$body['survei_id'], $wilayahId,
@@ -487,6 +488,7 @@ class TugasKegiatanController
                 $periodeFields['triwulan_ke'], $periodeFields['bulan'], $periodeFields['minggu_ke'],
                 (int)$body['target_sampel'],
                 max(0, (int)($body['sampel_selesai'] ?? 0)),
+                $catatan,
                 $body['deadline'],
                 $pemeriksaId,
                 $id,

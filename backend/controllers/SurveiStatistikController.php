@@ -221,7 +221,7 @@ class SurveiStatistikController
                 COALESCE(mw.desa_kelurahan, 'Seluruh Wilayah') AS desa_kelurahan,
                 mw.kecamatan AS wilayah_kecamatan,
                 t.tahun, t.bulan, t.triwulan_ke, t.minggu_ke,
-                t.target_sampel, t.sampel_selesai, t.deadline,
+                t.target_sampel, t.sampel_selesai, t.catatan, t.deadline,
                 ms.jenis_periode,
                 ROUND(t.sampel_selesai / NULLIF(t.target_sampel, 0) * 100, 1) AS persen
             FROM tugas_kegiatan t

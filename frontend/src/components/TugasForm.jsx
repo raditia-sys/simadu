@@ -9,13 +9,14 @@ const EMPTY = {
   petugas_id: '', kegiatan_id: '',
   tahun: new Date().getFullYear(), bulan: '', triwulan_ke: '', minggu_ke: '',
   target_sampel: '', sampel_selesai: '0', deadline: '',
+  catatan: '',
 };
 
 /**
  * TugasForm — modal form untuk tambah / edit tugas kegiatan.
  *
  * Props:
- * - mode: 'add' | 'edit' | 'edit-selesai'  (edit-selesai untuk admin: hanya sampel_selesai)
+ * - mode: 'add' | 'edit' | 'edit-selesai'  (edit-selesai untuk admin: hanya sampel_selesai dan catatan)
  * - initialData: object | null  (data row untuk mode edit)
  * - onClose: fn
  * - onSaved: fn(savedRow)
@@ -70,6 +71,7 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
         target_sampel:      initialData.target_sampel != null ? String(initialData.target_sampel) : '',
         sampel_selesai:     initialData.sampel_selesai != null ? String(initialData.sampel_selesai) : '0',
         deadline:           initialData.deadline ?? '',
+        catatan:            initialData.catatan ?? '',
       });
       setJenisPeriode(initialData.jenis_periode ?? '');
     }
@@ -94,11 +96,12 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
     setError('');
 
     if (isAdminEdit) {
-      // Admin mode: hanya kirim sampel_selesai
+      // Admin mode: update sampel_selesai dan catatan
       if (form.sampel_selesai === '') { setError('Sampel Selesai wajib diisi.'); return; }
       setSaving(true);
       const res = await api.put(`/tugas/${initialData.id}`, {
         sampel_selesai: parseInt(form.sampel_selesai, 10),
+        catatan: form.catatan ? form.catatan.trim() : null,
       });
       setSaving(false);
       if (res.success) { onSaved(res.data); onClose(); }
@@ -128,6 +131,7 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
       tahun:          parseInt(form.tahun),
       target_sampel:  parseInt(form.target_sampel),
       sampel_selesai: parseInt(form.sampel_selesai || '0'),
+      catatan:        form.catatan ? form.catatan.trim() : null,
       deadline:       form.deadline,
     };
 
@@ -200,6 +204,15 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
                 value={form.sampel_selesai}
                 onChange={(e) => f('sampel_selesai', e.target.value)}
                 autoFocus
+              />
+            </FormField>
+            <FormField label="Catatan / Keterangan Sampel" hint="Nama responden, alamat, kontak HP, atau catatan lapangan.">
+              <textarea
+                value={form.catatan}
+                onChange={(e) => f('catatan', e.target.value)}
+                placeholder="Contoh: Toko Berkah / Bpk. Ahmad (0812-xxxx-xxxx), RT 04..."
+                rows={3}
+                className="w-full rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary text-sm px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all resize-none"
               />
             </FormField>
           </>
@@ -333,6 +346,25 @@ export default function TugasForm({ mode = 'add', initialData = null, onClose, o
                   onChange={(e) => f('deadline', e.target.value)} />
               </FormField>
             </div>
+
+            <FormField label="Pemeriksa (Pegawai)">
+              <Select id="sel-pemeriksa" value={form.pemeriksa_id} onChange={(e) => f('pemeriksa_id', e.target.value)}>
+                <option value="">-- Tanpa Pemeriksa Khusus --</option>
+                {petugasList.filter(p => p.tipe === 'pegawai').map((p) => (
+                  <option key={p.id} value={p.id}>{p.nama}</option>
+                ))}
+              </Select>
+            </FormField>
+
+            <FormField label="Catatan / Keterangan Sampel" hint="Opsional. Nama responden, alamat, kontak HP, atau catatan lapangan.">
+              <textarea
+                value={form.catatan}
+                onChange={(e) => f('catatan', e.target.value)}
+                placeholder="Contoh: Toko Berkah / Bpk. Ahmad (0812-xxxx-xxxx), RT 04 Desa Terusan..."
+                rows={2}
+                className="w-full rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary text-sm px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all resize-none"
+              />
+            </FormField>
           </>
         )}
       </div>

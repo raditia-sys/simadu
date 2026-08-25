@@ -115,8 +115,8 @@ export default function ProgressRingGrid({
                   )}
                 </div>
                 {isDrillable && (
-                  <span className="text-xs text-navy/50 dark:text-dark-navy/50 group-hover:text-navy dark:group-hover:text-dark-navy transition-colors">
-                    Lihat desa →
+                  <span className="text-xs text-navy/60 dark:text-dark-navy/60 group-hover:text-navy dark:group-hover:text-dark-navy font-medium transition-colors">
+                    Lihat tugas →
                   </span>
                 )}
               </button>

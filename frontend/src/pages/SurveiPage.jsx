@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import RadialProgress from '../components/ui/RadialProgress';
 import ProgressRingGrid from '../components/survei/ProgressRingGrid';
+import KecamatanTugasModal from '../components/survei/KecamatanTugasModal';
 import Pagination from '../components/ui/Pagination';
 import TugasForm from '../components/TugasForm';
 
@@ -51,7 +52,6 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   // ── Progress data ──────────────────────────────────────────────────────────
   const [progressData, setProgressData]   = useState({ by_kecamatan: [], by_desa: [] });
   const [progLoading,  setProgLoading]    = useState(false);
-  const [drillKec,     setDrillKec]       = useState(null); // kecamatan yang sedang dibuka
 
   // ── Petugas tabel ─────────────────────────────────────────────────────────
   const [petugasData,    setPetugasData]    = useState([]);
@@ -61,7 +61,8 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   const [petugasSearch,  setPetugasSearch]  = useState('');
 
   // ── Modal & Toast ─────────────────────────────────────────────────────────
-  const [tugasModal, setTugasModal] = useState({ open: false, mode: 'edit-selesai', row: null });
+  const [tugasModal,     setTugasModal]     = useState({ open: false, mode: 'edit-selesai', row: null });
+  const [kecamatanModal, setKecamatanModal] = useState({ open: false, kecamatan: null, info: null });
   const [toast, setToast] = useState('');
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
 
@@ -109,32 +110,26 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   const loadProgress = useCallback(() => {
     if (!survei) return;
     setProgLoading(true);
-    setDrillKec(null);
     api.get('/survei-statistik/progress' + filterQs()).then((res) => {
       if (res.success) setProgressData(res.data);
       setProgLoading(false);
     });
   }, [survei, filterQs]);
 
-  useEffect(() => {
-    loadProgress();
-  }, [loadProgress]);
-
-  // ── Load petugas (lazy) ───────────────────────────────────────────────────
+  // ── Load petugas ───────────────────────────────────────────────────────────
   const loadPetugas = useCallback(() => {
     if (!survei) return;
     setPetugasLoading(true);
-    api.get('/survei-statistik/petugas' + filterQs(drillKec ? { kecamatan: drillKec } : {})).then((res) => {
+    api.get('/survei-statistik/petugas' + filterQs()).then((res) => {
       if (res.success) setPetugasData(res.data);
       setPetugasLoading(false);
     });
-  }, [survei, filterQs, drillKec]);
+  }, [survei, filterQs]);
 
   useEffect(() => {
-    if (tab === 'petugas') {
-      loadPetugas();
-    }
-  }, [tab, loadPetugas]);
+    loadProgress();
+    loadPetugas();
+  }, [loadProgress, loadPetugas]);
 
   // ── Load dokumen (lazy) ───────────────────────────────────────────────────
   useEffect(() => {
@@ -143,11 +138,6 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
       if (res.success) setDokumen(res.data);
     });
   }, [survei, tab]);
-
-  // ── Drill down ke desa ────────────────────────────────────────────────────
-  const desaForDrill = drillKec
-    ? progressData.by_desa.filter((d) => d.kecamatan === drillKec)
-    : [];
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -323,12 +313,13 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
           {/* ── Tab: Monitoring Progres ─────────────────────────────────────── */}
           {tab === 'progress' && (
             <ProgressRingGrid
-              items={drillKec ? desaForDrill : progressData.by_kecamatan}
-              title={drillKec ? `Desa/Kelurahan — Kec. ${drillKec}` : 'Progres per Kecamatan'}
+              items={progressData.by_kecamatan}
+              title="Progres per Kecamatan"
               loading={progLoading}
-              drillLabel={drillKec}
-              onDrill={(kec) => setDrillKec(kec)}
-              onBack={() => setDrillKec(null)}
+              onDrill={(kec) => {
+                const info = progressData.by_kecamatan.find((k) => k.label === kec);
+                setKecamatanModal({ open: true, kecamatan: kec, info });
+              }}
             />
           )}
 
@@ -402,8 +393,8 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-navy/4 dark:bg-dark-navy/8">
-                        {['Petugas','Tipe','Peran','Wilayah','Periode','Target','Selesai','Progres','Deadline', ...(canEdit ? ['Aksi'] : [])].map((h) => (
-                          <th key={h} className={`px-4 py-2.5 text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide whitespace-nowrap ${h === 'Aksi' ? 'text-right' : 'text-left'}`}>
+                        {['Petugas','Tipe','Peran','Wilayah','Periode','Target','Selesai','Progres','Deadline','Catatan', ...(canEdit ? ['Aksi'] : [])].map((h) => (
+                          <th key={h} className="px-4 py-2.5 text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide whitespace-nowrap text-center">
                             {h}
                           </th>
                         ))}
@@ -413,7 +404,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                       {petugasLoading ? (
                         Array.from({ length: 5 }).map((_, i) => (
                           <tr key={i} className="border-t border-border-soft dark:border-dark-border-soft">
-                            {Array.from({ length: canEdit ? 10 : 9 }).map((_, j) => (
+                            {Array.from({ length: canEdit ? 11 : 10 }).map((_, j) => (
                               <td key={j} className="px-4 py-3">
                                 <div className="h-3 rounded-full bg-status-neutral/15 animate-pulse" style={{ width: `${40 + j * 7}%` }} />
                               </td>
@@ -422,7 +413,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                         ))
                       ) : paginatedPetugas.length === 0 ? (
                         <tr>
-                          <td colSpan={canEdit ? 10 : 9} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">
+                          <td colSpan={canEdit ? 11 : 10} className="px-4 py-10 text-center text-sm text-text-secondary dark:text-dark-text-secondary">
                             Belum ada petugas terdaftar untuk survei ini pada periode tersebut.
                           </td>
                         </tr>
@@ -489,6 +480,15 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                               </td>
                               <td className={`px-4 py-3 text-xs font-mono whitespace-nowrap ${isLate ? 'text-accent-orange dark:text-dark-accent-orange font-semibold' : 'text-text-secondary dark:text-dark-text-secondary'}`}>
                                 {isLate && '⚠ '}{row.deadline || '—'}
+                              </td>
+                              <td className="px-4 py-3 text-xs min-w-[120px] max-w-[200px]">
+                                {row.catatan ? (
+                                  <span className="text-text-primary dark:text-dark-text-primary line-clamp-2" title={row.catatan}>
+                                    {row.catatan}
+                                  </span>
+                                ) : (
+                                  <span className="text-text-secondary/50 dark:text-dark-text-secondary/50 italic">—</span>
+                                )}
                               </td>
                               {canEdit && (
                                 <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -659,6 +659,26 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
             loadProgress();
             loadSurveiInfo();
           }}
+        />
+      )}
+
+      {/* ── Modal Pop-up Daftar Tugas per Kecamatan ────────────────────────── */}
+      {kecamatanModal.open && (
+        <KecamatanTugasModal
+          kecamatan={kecamatanModal.kecamatan}
+          survei={survei}
+          items={(petugasData || []).filter((p) => p.kecamatan === kecamatanModal.kecamatan)}
+          kecInfo={kecamatanModal.info}
+          onClose={() => setKecamatanModal({ open: false, kecamatan: null, info: null })}
+          onEditTask={(row) =>
+            setTugasModal({
+              open: true,
+              mode: isSuperadmin ? 'edit' : 'edit-selesai',
+              row,
+            })
+          }
+          canEdit={canEdit}
+          isSuperadmin={isSuperadmin}
         />
       )}
     </div>

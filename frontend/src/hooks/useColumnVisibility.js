@@ -14,15 +14,19 @@ export function useColumnVisibility(tableId, allCols) {
   const storageKey = STORAGE_KEY_PREFIX + tableId;
 
   const defaultVisible = () => {
+    const initial = Object.fromEntries(
+      allCols.map((c) => [c.key, c.defaultVisible !== undefined ? Boolean(c.defaultVisible) : true])
+    );
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (typeof parsed === 'object') return parsed;
+        if (typeof parsed === 'object' && parsed !== null) {
+          return { ...initial, ...parsed };
+        }
       } catch { /* ignore */ }
     }
-    // Default: semua kolom tampil
-    return Object.fromEntries(allCols.map((c) => [c.key, true]));
+    return initial;
   };
 
   const [visible, setVisible] = useState(defaultVisible);
@@ -39,7 +43,11 @@ export function useColumnVisibility(tableId, allCols) {
   }, [allCols]);
 
   const reset = useCallback(() => {
-    setVisible(Object.fromEntries(allCols.map((c) => [c.key, true])));
+    setVisible(
+      Object.fromEntries(
+        allCols.map((c) => [c.key, c.defaultVisible !== undefined ? Boolean(c.defaultVisible) : true])
+      )
+    );
   }, [allCols]);
 
   return { visible, toggle, reset };
