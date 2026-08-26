@@ -754,7 +754,7 @@ class TugasKegiatanController
     // ─────────────────────────────────────────────────────────────────────────
     public static function exportExcel(): void
     {
-        requireAuth();
+        requireRole('superadmin');
         require_once ROOT_DIR . '/vendor/autoload.php';
 
         $pdo = Database::connect();

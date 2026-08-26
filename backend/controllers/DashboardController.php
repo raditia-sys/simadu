@@ -42,6 +42,98 @@ class DashboardController
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // INIT — Agregasi tunggal untuk inisialisasi Dasbor (memangkas 4 roundtrip)
+    // ─────────────────────────────────────────────────────────────────────────
+    public static function init(): void
+    {
+        requireAuth();
+        $pdo = Database::connect();
+        [$where, $params] = self::buildPeriodeWhere();
+        $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        // 1. Summary KPI
+        $stmtSum = $pdo->prepare("
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN sampel_selesai >= target_sampel AND target_sampel > 0 THEN 1 ELSE 0 END) AS selesai,
+                SUM(CASE WHEN sampel_selesai > 0 AND sampel_selesai < target_sampel THEN 1 ELSE 0 END) AS berjalan,
+                SUM(CASE WHEN sampel_selesai = 0 THEN 1 ELSE 0 END) AS belum_mulai,
+                ROUND(AVG(CASE WHEN target_sampel > 0 THEN LEAST(100, sampel_selesai / target_sampel * 100) ELSE 0 END), 1) AS rata_persen,
+                SUM(target_sampel)  AS total_target,
+                SUM(sampel_selesai) AS total_selesai
+            FROM tugas_kegiatan t
+            LEFT JOIN master_wilayah mw ON mw.id = t.wilayah_id
+            $whereSql
+        ");
+        $stmtSum->execute($params);
+        $row = $stmtSum->fetch();
+
+        // 2. Progress per Kecamatan
+        $stmtWil = $pdo->prepare("
+            SELECT
+                COALESCE(mw.kecamatan, 'Lintas Wilayah') AS label,
+                COUNT(*) AS total_tugas,
+                SUM(target_sampel)  AS total_target,
+                SUM(sampel_selesai) AS total_selesai,
+                ROUND(SUM(sampel_selesai) / NULLIF(SUM(target_sampel), 0) * 100, 1) AS persen
+            FROM tugas_kegiatan t
+            LEFT JOIN master_wilayah mw ON mw.id = t.wilayah_id
+            $whereSql
+            GROUP BY COALESCE(mw.kecamatan, 'Lintas Wilayah')
+            ORDER BY persen DESC
+        ");
+        $stmtWil->execute($params);
+        $chartWilayah = $stmtWil->fetchAll();
+
+        // 3. Deadline Dekat
+        $hari = 14;
+        $targetDate = date('Y-m-d', strtotime("+{$hari} days"));
+        $stmtDl = $pdo->prepare("
+            SELECT
+                t.id, ms.nama_survei,
+                COALESCE(mw.kecamatan, 'Lintas Wilayah') AS kecamatan,
+                COALESCE(mw.desa_kelurahan, 'Seluruh Wilayah') AS desa_kelurahan,
+                p.nama AS nama_petugas,
+                t.target_sampel, t.sampel_selesai, t.deadline,
+                DATEDIFF(t.deadline, CURDATE()) AS sisa_hari,
+                ROUND(t.sampel_selesai / NULLIF(t.target_sampel, 0) * 100, 1) AS persen
+            FROM tugas_kegiatan t
+            JOIN master_survei ms ON ms.id = t.survei_id
+            LEFT JOIN master_wilayah mw ON mw.id = t.wilayah_id
+            JOIN petugas p ON p.id = t.petugas_id
+            WHERE t.deadline BETWEEN CURDATE() AND ?
+              AND (t.sampel_selesai < t.target_sampel OR t.target_sampel = 0)
+            ORDER BY t.deadline ASC
+            LIMIT 50
+        ");
+        $stmtDl->execute([$targetDate]);
+        $deadlines = $stmtDl->fetchAll();
+
+        // 4. Available Years
+        $stmtY = $pdo->query('SELECT DISTINCT tahun FROM tugas_kegiatan ORDER BY tahun DESC');
+        $years = $stmtY->fetchAll(PDO::FETCH_COLUMN);
+        $currentYear = (int)date('Y');
+        if (!in_array($currentYear, $years)) {
+            array_unshift($years, $currentYear);
+        }
+
+        respond(true, [
+            'summary' => [
+                'total'        => (int)($row['total'] ?? 0),
+                'selesai'      => (int)($row['selesai'] ?? 0),
+                'berjalan'     => (int)($row['berjalan'] ?? 0),
+                'belum_mulai'  => (int)($row['belum_mulai'] ?? 0),
+                'rata_persen'  => (float)($row['rata_persen'] ?? 0),
+                'total_target' => (int)($row['total_target'] ?? 0),
+                'total_selesai'=> (int)($row['total_selesai'] ?? 0),
+            ],
+            'chart_data' => $chartWilayah,
+            'deadlines'  => $deadlines,
+            'years'      => $years,
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // SUMMARY — 4 KPI cards
     // ─────────────────────────────────────────────────────────────────────────
     public static function summary(): void

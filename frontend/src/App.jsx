@@ -1,51 +1,50 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/layout/Layout';
 
-// Pages
-import LoginPage       from './pages/LoginPage';
-import DashboardPage   from './pages/DashboardPage';
-import NotFound        from './pages/NotFound';
-import TugasKegiatanPage from './pages/TugasKegiatanPage';
-
-// Master Data
-import MasterWilayahPage  from './pages/master/MasterWilayahPage';
-import MasterSurveiPage   from './pages/master/MasterSurveiPage';
-import MasterKegiatanPage from './pages/master/MasterKegiatanPage';
-import MasterUsersPage    from './pages/master/MasterUsersPage';
-import { MasterPegawaiPage, MasterMitraPage } from './pages/master/MasterPetugasPage';
-import SurveiPage           from './pages/SurveiPage';
-import ManajemenDokumenPage from './pages/ManajemenDokumenPage';
-import KalenderPage         from './pages/KalenderPage';
-import TimPage              from './pages/TimPage';
-import LogAktivitasPage     from './pages/LogAktivitasPage';
-import LaporanPerjalananPage from './pages/LaporanPerjalananPage';
-
-// Placeholder — halaman ini akan dibangun di tahap berikutnya
-function Placeholder({ title }) {
+// Loading fallback untuk login / initial
+function AuthLoader() {
   return (
-    <div className="space-y-4">
-      <h1 className="font-heading text-xl font-bold text-text-primary dark:text-dark-text-primary">{title}</h1>
-      <div className="card p-8 flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-navy/8 dark:bg-dark-navy/15 flex items-center justify-center mx-auto">
-            <svg className="w-6 h-6 text-navy/40 dark:text-dark-navy/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l5.654-4.654m5.65-4.65 1.358-1.358a3.75 3.75 0 1 1 5.303 5.304l-1.358 1.357" />
-            </svg>
-          </div>
-          <p className="text-sm text-text-secondary dark:text-dark-text-secondary">Halaman ini sedang dalam pengembangan.</p>
-        </div>
+    <div className="flex items-center justify-center min-h-screen bg-bg-page dark:bg-dark-bg-page">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-9 h-9 rounded-full border-2 border-navy/20 border-t-navy dark:border-dark-navy/30 dark:border-t-dark-navy animate-spin" />
+        <span className="text-xs text-text-secondary dark:text-dark-text-secondary font-medium">Memuat SIMADU...</span>
       </div>
     </div>
   );
 }
 
+// Lazy-loaded Pages (Code Splitting)
+const LoginPage            = lazy(() => import('./pages/LoginPage'));
+const DashboardPage        = lazy(() => import('./pages/DashboardPage'));
+const NotFound             = lazy(() => import('./pages/NotFound'));
+const TugasKegiatanPage    = lazy(() => import('./pages/TugasKegiatanPage'));
+const SurveiPage           = lazy(() => import('./pages/SurveiPage'));
+const ManajemenDokumenPage = lazy(() => import('./pages/ManajemenDokumenPage'));
+const KalenderPage         = lazy(() => import('./pages/KalenderPage'));
+const TimPage              = lazy(() => import('./pages/TimPage'));
+const LogAktivitasPage     = lazy(() => import('./pages/LogAktivitasPage'));
+const LaporanPerjalananPage = lazy(() => import('./pages/LaporanPerjalananPage'));
+
+// Master Data (Lazy)
+const MasterWilayahPage    = lazy(() => import('./pages/master/MasterWilayahPage'));
+const MasterSurveiPage     = lazy(() => import('./pages/master/MasterSurveiPage'));
+const MasterKegiatanPage   = lazy(() => import('./pages/master/MasterKegiatanPage'));
+const MasterUsersPage      = lazy(() => import('./pages/master/MasterUsersPage'));
+const MasterPegawaiPage    = lazy(() => import('./pages/master/MasterPetugasPage').then((m) => ({ default: m.MasterPegawaiPage })));
+const MasterMitraPage      = lazy(() => import('./pages/master/MasterPetugasPage').then((m) => ({ default: m.MasterMitraPage })));
+
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: <LoginPage />,
+    element: (
+      <Suspense fallback={<AuthLoader />}>
+        <LoginPage />
+      </Suspense>
+    ),
   },
   {
     path: '/',

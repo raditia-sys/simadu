@@ -93,6 +93,7 @@ $routes = [
     'GET /api/me'           => [AuthController::class,  'me'],
 
     // ── Dashboard ────────────────────────────────────────────────────────────
+    'GET /api/dashboard/init'             => [DashboardController::class, 'init'],
     'GET /api/dashboard/summary'          => [DashboardController::class, 'summary'],
     'GET /api/dashboard/progress-wilayah' => [DashboardController::class, 'progressWilayah'],
     'GET /api/dashboard/progress-survei'  => [DashboardController::class, 'progressSurvei'],

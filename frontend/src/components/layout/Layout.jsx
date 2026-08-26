@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
@@ -6,21 +6,19 @@ import ErrorBoundary from '../ErrorBoundary';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useAuth } from '../../contexts/AuthContext';
 
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-navy/20 border-t-navy dark:border-dark-navy/30 dark:border-t-dark-navy animate-spin" />
+        <span className="text-xs text-text-secondary dark:text-dark-text-secondary font-medium">Memuat data...</span>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Layout — root wrapper for all authenticated pages.
- *
- * Structure:
- * ┌─────────────────────────────────────────────┐
- * │ Topbar (fixed height: 56px)                 │
- * ├───────────┬─────────────────────────────────┤
- * │           │                                 │
- * │  Sidebar  │   <Outlet /> (page content)     │
- * │  (fixed   │   wrapped in ErrorBoundary      │
- * │   width)  │                                 │
- * └───────────┴─────────────────────────────────┘
- *
- * Note: Mobile sidebar overlays the content area (not yet fully implemented —
- * foundation is here, full mobile drawer will be added in UI polish phase).
  */
 export default function Layout() {
   const { isDark, toggle: toggleDark } = useDarkMode();
@@ -53,7 +51,9 @@ export default function Layout() {
           {/* Error Boundary wraps only the page outlet — Sidebar/Topbar stay visible on error */}
           <ErrorBoundary>
             <div className="p-6">
-              <Outlet />
+              <Suspense fallback={<PageLoader />}>
+                <Outlet />
+              </Suspense>
             </div>
           </ErrorBoundary>
         </main>

@@ -95,49 +95,41 @@ export default function DashboardPage() {
     return params.toString() ? '?' + params.toString() : '';
   }, [tahun, bulan]);
 
-  // ── Load available years ──────────────────────────────────────────────────
+  // ── Load dashboard init (Single Payload) or individual chart ──────────────
   useEffect(() => {
-    api.get('/dashboard/years').then((res) => {
-      if (res.success) setYears(res.data);
-    });
-  }, []);
+    if (chartView === 'wilayah') {
+      setLoadingSum(true);
+      setLoadingChart(true);
+      setLoadingDl(true);
+      api.get('/dashboard/init' + qs()).then((res) => {
+        if (res.success && res.data) {
+          if (res.data.summary) setSummary(res.data.summary);
+          if (res.data.chart_data) setChartData(res.data.chart_data);
+          if (res.data.deadlines) {
+            setDeadlines(res.data.deadlines);
+            setCalDates(res.data.deadlines.map((d) => d.deadline));
+          }
+          if (res.data.years) setYears(res.data.years);
+        }
+      }).finally(() => {
+        setLoadingSum(false);
+        setLoadingChart(false);
+        setLoadingDl(false);
+      });
+    } else {
+      // Refresh chart saat berpindah ke mode desa atau survei
+      setLoadingChart(true);
+      const endpoint = chartView === 'survei'
+        ? '/dashboard/progress-survei' + qs()
+        : '/dashboard/progress-wilayah' + qs({ kecamatan: 'ALL' });
 
-  // ── Load summary KPI ──────────────────────────────────────────────────────
-  useEffect(() => {
-    setLoadingSum(true);
-    api.get('/dashboard/summary' + qs()).then((res) => {
-      if (res.success) setSummary(res.data);
-      setLoadingSum(false);
-    });
-  }, [qs]);
-
-  // ── Load chart data ───────────────────────────────────────────────────────
-  useEffect(() => {
-    setLoadingChart(true);
-    const endpoint = chartView === 'survei'
-      ? '/dashboard/progress-survei' + qs()
-      : chartView === 'desa'
-        ? '/dashboard/progress-wilayah' + qs({ kecamatan: 'ALL' })
-        : '/dashboard/progress-wilayah' + qs();
-
-    api.get(endpoint).then((res) => {
-      if (res.success) setChartData(res.data);
-      setLoadingChart(false);
-    });
+      api.get(endpoint).then((res) => {
+        if (res.success) setChartData(res.data);
+      }).finally(() => {
+        setLoadingChart(false);
+      });
+    }
   }, [qs, chartView]);
-
-  // ── Load deadlines ────────────────────────────────────────────────────────
-  useEffect(() => {
-    setLoadingDl(true);
-    api.get('/dashboard/deadline-dekat?hari=14').then((res) => {
-      if (res.success) {
-        setDeadlines(res.data);
-        // Kumpulkan tanggal untuk kalender
-        setCalDates(res.data.map((d) => d.deadline));
-      }
-      setLoadingDl(false);
-    });
-  }, []);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   const BULAN_OPTS = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
