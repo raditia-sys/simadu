@@ -40,6 +40,19 @@
     @apply outline-none ring-2 ring-navy ring-offset-2;
     @apply dark:ring-dark-navy dark:ring-offset-dark-bg-page;
   }
+
+  /* Date & Time inputs: entire box is clickable */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    cursor: pointer;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+  }
 }
 
 /* ─── Reusable Component Classes ─────────────────────────────────────────── */

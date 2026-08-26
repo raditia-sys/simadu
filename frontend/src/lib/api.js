@@ -5,7 +5,36 @@
  * credentials: 'include' → session cookie ikut dikirim (penting untuk auth)
  */
 
-const BASE = window.location.pathname.startsWith('/simadu') ? '/simadu/api' : '/api';
+export const API_BASE = window.location.pathname.startsWith('/simadu') ? '/simadu/api' : '/api';
+
+export async function apiUpload(path, formData) {
+  try {
+    const res = await fetch(API_BASE + path, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({
+      success: false,
+      data: null,
+      message: `HTTP ${res.status} — respons tidak valid`,
+    }));
+
+    if (res.status === 401 && !path.startsWith('/auth')) {
+      window.dispatchEvent(new Event('simadu:unauthorized'));
+    }
+
+    return { ...json, status: res.status, ok: res.ok };
+  } catch (err) {
+    return {
+      success: false,
+      data: null,
+      message: 'Gagal mengunggah file. Periksa koneksi server.',
+      status: 0,
+      ok: false,
+    };
+  }
+}
 
 async function request(method, path, body) {
   const options = {
@@ -18,7 +47,7 @@ async function request(method, path, body) {
   }
 
   try {
-    const res = await fetch(BASE + path, options);
+    const res = await fetch(API_BASE + path, options);
     const json = await res.json().catch(() => ({
       success: false,
       data: null,
@@ -48,4 +77,5 @@ export const api = {
   post:   (path, body)  => request('POST',   path, body),
   put:    (path, body)  => request('PUT',    path, body),
   delete: (path, body)  => request('DELETE', path, body),
+  upload: (path, fd)    => apiUpload(path, fd),
 };

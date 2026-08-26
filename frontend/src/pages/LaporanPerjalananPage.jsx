@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { api } from '../lib/api';
+import { api, API_BASE, apiUpload } from '../lib/api';
 import WizardStepBar from '../components/perjalanan/WizardStepBar';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Pagination from '../components/ui/Pagination';
@@ -143,11 +143,11 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Tanggal Surat Tugas</label>
-          <input type="date" value={form.tanggal_surat_tugas} onChange={sf('tanggal_surat_tugas')} className={inputCls} />
+          <input type="date" value={form.tanggal_surat_tugas} onChange={sf('tanggal_surat_tugas')} onClick={(e) => { try { e.target.showPicker?.(); } catch(_) {} }} className={inputCls + ' cursor-pointer'} />
         </div>
         <div>
           <label className={labelCls}>Tanggal Tugas *</label>
-          <input type="date" value={form.tanggal_tugas} onChange={sf('tanggal_tugas')} className={inputCls} />
+          <input type="date" value={form.tanggal_tugas} onChange={sf('tanggal_tugas')} onClick={(e) => { try { e.target.showPicker?.(); } catch(_) {} }} className={inputCls + ' cursor-pointer'} />
         </div>
       </div>
 
@@ -389,15 +389,15 @@ function Step2({ laporan, onSaved }) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <label className={labelCls}>Hari/Tanggal</label>
-                <input type="date" value={row.hari_tanggal ?? ''} onChange={e => update(i, 'hari_tanggal', e.target.value)} className={inputCls} />
+                <input type="date" value={row.hari_tanggal ?? ''} onChange={e => update(i, 'hari_tanggal', e.target.value)} onClick={(e) => { try { e.target.showPicker?.(); } catch(_) {} }} className={inputCls + ' cursor-pointer'} />
               </div>
               <div>
                 <label className={labelCls}>Waktu Mulai (WIB)</label>
-                <input type="time" value={row.waktu_mulai ?? ''} onChange={e => update(i, 'waktu_mulai', e.target.value)} className={inputCls} />
+                <input type="time" value={row.waktu_mulai ?? ''} onChange={e => update(i, 'waktu_mulai', e.target.value)} onClick={(e) => { try { e.target.showPicker?.(); } catch(_) {} }} className={inputCls + ' cursor-pointer'} />
               </div>
               <div>
                 <label className={labelCls}>Waktu Selesai (WIB)</label>
-                <input type="time" value={row.waktu_selesai ?? ''} onChange={e => update(i, 'waktu_selesai', e.target.value)} className={inputCls} />
+                <input type="time" value={row.waktu_selesai ?? ''} onChange={e => update(i, 'waktu_selesai', e.target.value)} onClick={(e) => { try { e.target.showPicker?.(); } catch(_) {} }} className={inputCls + ' cursor-pointer'} />
               </div>
               <div>
                 <label className={labelCls}>Lokasi</label>
@@ -442,10 +442,14 @@ function Step2({ laporan, onSaved }) {
   );
 }
 
+const DEFAULT_RINGKASAN = `Melakukan perjalanan pada hari (hari, tanggal). Berangkat dari Muara Bulian pada pukul (waktu) menuju rumah tangga yang menjadi sampel di (Desa/Kelurahan), (Kecamatan), Kabupaten Batang Hari, Provinsi Jambi.
+Kegiatan ini dilaksanakan sebagai bagian dari surat tugas yang berlaku. Selama kegiatan pendataan, petugas melakukan persiapan menuju tempat pendataan, melaksanakan pendataan ke rumah tangga sampel terpilih (kegiatan survei) dan perjalanan pulang. Semua informasi pada kuesioner sudah berhasil diperoleh dan dicatat dengan lengkap. 
+Secara keseluruhan kegiatan pendataan di (Desa/Kelurahan atau Kecamatan) berjalan dengan lancar dan aman.`;
+
 // ─── Step 3: Dokumentasi & Ringkasan ─────────────────────────────────────────
 function Step3({ laporan, onDone }) {
   const [fotos,     setFotos]     = useState(laporan?.foto ?? []);
-  const [ringkasan, setRingkasan] = useState(laporan?.ringkasan_hasil ?? '');
+  const [ringkasan, setRingkasan] = useState(() => (laporan?.ringkasan_hasil && laporan.ringkasan_hasil.trim()) ? laporan.ringkasan_hasil : DEFAULT_RINGKASAN);
   const [uploading, setUploading] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [drag,      setDrag]      = useState(false);
@@ -459,13 +463,20 @@ function Step3({ laporan, onDone }) {
       setError('Format foto harus JPG, PNG, atau WEBP.'); return;
     }
     setUploading(true); setError('');
-    const fd = new FormData();
-    fd.append('foto', file);
-    const res = await fetch(`/api/perjalanan/${laporan.id}/foto`, { method: 'POST', credentials: 'include', body: fd });
-    const json = await res.json();
-    setUploading(false);
-    if (json.success) setFotos(f => [...f, json.data]);
-    else setError(json.message);
+    try {
+      const fd = new FormData();
+      fd.append('foto', file);
+      const res = await apiUpload(`/perjalanan/${laporan.id}/foto`, fd);
+      if (res.success) {
+        setFotos(f => [...f, res.data]);
+      } else {
+        setError(res.message || 'Gagal mengunggah foto.');
+      }
+    } catch (err) {
+      setError('Terjadi kesalahan saat mengunggah foto.');
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function deleteFoto(fotoId) {
@@ -475,30 +486,36 @@ function Step3({ laporan, onDone }) {
 
   async function finish() {
     setFinishing(true); setError('');
-    // POST ke selesai — response adalah zip binary
-    const res = await fetch(`/api/perjalanan/${laporan.id}/selesai`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ringkasan_hasil: ringkasan }),
-    });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setError(json.message || 'Gagal generate dokumen.');
-      setFinishing(false); return;
+    try {
+      // POST ke selesai — response adalah zip binary
+      const res = await fetch(`${API_BASE}/perjalanan/${laporan.id}/selesai`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ringkasan_hasil: ringkasan }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.message || 'Gagal generate dokumen.');
+        setFinishing(false);
+        return;
+      }
+      // Trigger download ZIP
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = `Laporan_Perjalanan_${laporan.id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setFinishing(false);
+      onDone();
+    } catch (err) {
+      setError('Terjadi kesalahan saat memproses laporan.');
+      setFinishing(false);
     }
-    // Trigger download ZIP
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = `Laporan_Perjalanan_${laporan.id}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setFinishing(false);
-    onDone();
   }
 
   return (
@@ -551,10 +568,29 @@ function Step3({ laporan, onDone }) {
 
       {/* Ringkasan */}
       <div>
-        <label className={labelCls}>Ringkasan Hasil Perjalanan</label>
-        <textarea value={ringkasan} onChange={e => setRingkasan(e.target.value)} rows={4}
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <label className={labelCls}>Ringkasan Hasil Perjalanan</label>
+          <button
+            type="button"
+            onClick={() => setRingkasan(DEFAULT_RINGKASAN)}
+            className="text-[11px] text-navy dark:text-dark-navy hover:underline font-medium"
+          >
+            Reset ke Teks Default
+          </button>
+        </div>
+        <div className="p-3 mb-2 rounded-xl bg-accent-orange/8 dark:bg-dark-accent-orange/12 border border-accent-orange/20 dark:border-dark-accent-orange/30 text-xs text-accent-orange dark:text-dark-accent-orange flex items-start gap-2">
+          <span className="text-base leading-none">💡</span>
+          <p className="leading-relaxed">
+            <strong>Perhatian:</strong> Silakan sesuaikan atau lengkapi bagian di dalam tanda kurung <strong>(...)</strong> pada teks deskripsi di bawah sebelum menekan tombol <em>Selesai & Download .zip</em>.
+          </p>
+        </div>
+        <textarea
+          value={ringkasan}
+          onChange={e => setRingkasan(e.target.value)}
+          rows={7}
           placeholder="Tuliskan ringkasan hasil kegiatan selama perjalanan dinas..."
-          className={inputCls + ' resize-none'} />
+          className={inputCls + ' resize-y leading-relaxed font-sans text-xs sm:text-sm'}
+        />
       </div>
 
       {/* Info dokumen yang akan di-generate */}
@@ -689,7 +725,7 @@ export default function LaporanPerjalananPage() {
   }
 
   async function redownload(row) {
-    window.location.href = `/api/perjalanan/${row.id}/download`;
+    window.location.href = `${API_BASE}/perjalanan/${row.id}/download`;
   }
 
   // Completed steps untuk WizardStepBar

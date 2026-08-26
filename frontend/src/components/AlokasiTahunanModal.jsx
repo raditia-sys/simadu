@@ -8,8 +8,16 @@ const BULAN_NAMES = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','O
  * Hitung deadline per periode sesuai jenis_periode survei.
  * Logika sama dengan backend PHP calcDeadline().
  */
-function calcDeadline(jenis, periodeObj, tahun, deadlineHari, deadlineHariMg2, bulanSelesai) {
+function calcDeadline(jenis, periodeObj, tahun, deadlineHari, deadlineHariMg2, bulanSelesai, surveiObj = null) {
   const pad = (n) => String(n).padStart(2, '0');
+  const isSAPB = surveiObj && (
+    surveiObj.id === 1 ||
+    String(surveiObj.id) === '1' ||
+    surveiObj.kode_survei === 'SAPB' ||
+    (surveiObj.nama_survei && surveiObj.nama_survei.toUpperCase().includes('SAPB')) ||
+    (surveiObj.nama_survei && surveiObj.nama_survei.toLowerCase().includes('angkutan penumpang'))
+  );
+
   switch (jenis) {
     case 'tahunan': {
       const bln = bulanSelesai || 12;
@@ -30,7 +38,19 @@ function calcDeadline(jenis, periodeObj, tahun, deadlineHari, deadlineHariMg2, b
       return `${tahun}-${pad(periodeObj.bulan)}-${pad(d)}`;
     }
     case 'triwulanan': {
-      const bulanAkhir = periodeObj.triwulan_ke * 3;
+      const tw = periodeObj.triwulan_ke || 1;
+      if (isSAPB) {
+        // Khusus SAPB: TW1 (15 April), TW2 (15 Juli), TW3 (15 Oktober), TW4 (15 Jan tahun berikutnya)
+        const d = deadlineHari ? Number(deadlineHari) : 15;
+        switch (tw) {
+          case 1: return `${tahun}-04-${pad(d)}`;
+          case 2: return `${tahun}-07-${pad(d)}`;
+          case 3: return `${tahun}-10-${pad(d)}`;
+          case 4: return `${tahun + 1}-01-${pad(d)}`;
+          default: return `${tahun}-04-${pad(d)}`;
+        }
+      }
+      const bulanAkhir = tw * 3;
       const maxHari = new Date(tahun, bulanAkhir, 0).getDate();
       const d = deadlineHari ? Math.min(deadlineHari, maxHari) : maxHari;
       return `${tahun}-${pad(bulanAkhir)}-${pad(d)}`;
@@ -123,9 +143,9 @@ export default function AlokasiTahunanModal({ onClose, onSaved }) {
   const previewRows = useMemo(() =>
     periods.map(p => ({
       ...p,
-      deadline: calcDeadline(jenisPeriode, p, parseInt(form.tahun), deadlineHari, deadlineHariMg2, bulanSelesai),
+      deadline: calcDeadline(jenisPeriode, p, parseInt(form.tahun), deadlineHari, deadlineHariMg2, bulanSelesai, selectedSurvei),
     })),
-    [periods, jenisPeriode, form.tahun, deadlineHari, deadlineHariMg2, bulanSelesai]
+    [periods, jenisPeriode, form.tahun, deadlineHari, deadlineHariMg2, bulanSelesai, selectedSurvei]
   );
 
   const f = (key, val) => setForm(prev => ({ ...prev, [key]: val }));

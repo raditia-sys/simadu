@@ -255,7 +255,7 @@ class TugasKegiatanController
 
         // Cache master survei
         $surveiCache = [];
-        $stmtS = $pdo->prepare('SELECT jenis_periode, bulan_mulai, bulan_selesai, deadline_hari, deadline_hari_mg2 FROM master_survei WHERE id = ?');
+        $stmtS = $pdo->prepare('SELECT id, kode_survei, nama_survei, jenis_periode, bulan_mulai, bulan_selesai, deadline_hari, deadline_hari_mg2 FROM master_survei WHERE id = ?');
 
         // Statements
         $stmtCheck = $pdo->prepare(
@@ -331,7 +331,12 @@ class TugasKegiatanController
                         break;
                 }
 
-                $calcDeadline = function(array $p) use ($tahun, $jenis, $bulanSelesai, $deadlineHari, $deadlineHariMg2): string {
+                $isSAPB = ((int)($survei['id'] ?? 0) === 1
+                    || strtoupper($survei['kode_survei'] ?? '') === 'SAPB'
+                    || stripos($survei['nama_survei'] ?? '', 'SAPB') !== false
+                    || stripos($survei['nama_survei'] ?? '', 'Angkutan Penumpang') !== false);
+
+                $calcDeadline = function(array $p) use ($tahun, $jenis, $bulanSelesai, $deadlineHari, $deadlineHariMg2, $isSAPB): string {
                     switch ($jenis) {
                         case 'tahunan': {
                             $bl = str_pad((string)$bulanSelesai, 2, '0', STR_PAD_LEFT);
@@ -359,7 +364,20 @@ class TugasKegiatanController
                             return "{$tahun}-{$bl}-{$hari}";
                         }
                         case 'triwulanan': {
-                            $bulanAkhir = ((int)($p['triwulan_ke'] ?? 1)) * 3;
+                            $tw = (int)($p['triwulan_ke'] ?? 1);
+                            if ($isSAPB) {
+                                // Khusus SAPB: TW1 (15 April), TW2 (15 Juli), TW3 (15 Oktober), TW4 (15 Jan tahun berikutnya)
+                                $d = $deadlineHari ? (int)$deadlineHari : 15;
+                                $hari = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
+                                switch ($tw) {
+                                    case 1: return sprintf('%04d-04-%s', $tahun, $hari);
+                                    case 2: return sprintf('%04d-07-%s', $tahun, $hari);
+                                    case 3: return sprintf('%04d-10-%s', $tahun, $hari);
+                                    case 4: return sprintf('%04d-01-%s', $tahun + 1, $hari);
+                                    default: return sprintf('%04d-04-%s', $tahun, $hari);
+                                }
+                            }
+                            $bulanAkhir = $tw * 3;
                             $bl = str_pad((string)$bulanAkhir, 2, '0', STR_PAD_LEFT);
                             $maxHari = (int)date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulanAkhir)));
                             $d = $deadlineHari ? min((int)$deadlineHari, $maxHari) : $maxHari;

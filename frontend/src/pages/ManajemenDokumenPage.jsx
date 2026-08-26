@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../lib/api';
+import { api, API_BASE, apiUpload } from '../lib/api';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Modal, { FormField, Input, Select } from '../components/ui/Modal';
 import Pagination from '../components/ui/Pagination';
@@ -192,20 +192,25 @@ export default function ManajemenDokumenPage() {
   useEffect(() => { load(); }, [q, filterKat]);
 
   async function handleUpload(file) {
+    if (!file) return;
     setUploading(true);
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('kategori',  uploadForm.kategori);
-    fd.append('nama_file', uploadForm.nama_file || file.name.replace(/\.[^.]+$/, ''));
-    if (uploadForm.survei_id) fd.append('survei_id', uploadForm.survei_id);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('kategori',  uploadForm.kategori);
+      fd.append('nama_file', uploadForm.nama_file || file.name.replace(/\.[^.]+$/, ''));
+      if (uploadForm.survei_id) fd.append('survei_id', uploadForm.survei_id);
 
-    const res = await fetch('/api/dokumen/upload', { method: 'POST', credentials: 'include', body: fd });
-    const json = await res.json();
-    setUploading(false);
-    showToast(json.message);
-    if (json.success) {
-      load();
-      setUploadForm(f => ({...f, nama_file: ''}));
+      const json = await apiUpload('/dokumen/upload', fd);
+      showToast(json.message);
+      if (json.success) {
+        load();
+        setUploadForm(f => ({...f, nama_file: ''}));
+      }
+    } catch (err) {
+      showToast('Gagal mengunggah dokumen.');
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -451,7 +456,7 @@ export default function ManajemenDokumenPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <a href={isLink ? getValidUrl(doc.path) : `/api/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
+                            <a href={isLink ? getValidUrl(doc.path) : `${API_BASE}/dokumen/download/${doc.id}`} target="_blank" rel="noopener noreferrer"
                               className="p-1.5 rounded-lg text-text-secondary hover:text-navy hover:bg-navy/8 dark:text-dark-text-secondary dark:hover:text-dark-navy dark:hover:bg-dark-navy/15 transition-all" title={isLink ? "Buka Link" : "Download"}>
                               {isLink ? (
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>

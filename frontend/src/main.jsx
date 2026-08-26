@@ -17,6 +17,18 @@ import App from './App.jsx';
   }
 })();
 
+// ─── Enable click-anywhere to open date/time picker popup ─────────────────────
+document.addEventListener('click', (e) => {
+  const target = e.target;
+  if (target && target.tagName === 'INPUT' && (target.type === 'date' || target.type === 'time' || target.type === 'datetime-local')) {
+    try {
+      if (typeof target.showPicker === 'function') {
+        target.showPicker();
+      }
+    } catch (_) {}
+  }
+});
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

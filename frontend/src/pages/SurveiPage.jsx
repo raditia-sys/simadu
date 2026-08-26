@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, API_BASE } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import RadialProgress from '../components/ui/RadialProgress';
 import ProgressRingGrid from '../components/survei/ProgressRingGrid';
@@ -659,7 +659,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                       return (
                         <a
                           key={doc.id}
-                          href={isLink ? getValidUrl(doc.path) : `/api/dokumen/download/${doc.id}`}
+                          href={isLink ? getValidUrl(doc.path) : `${API_BASE}/dokumen/download/${doc.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="group p-3.5 rounded-2xl border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface hover:border-navy/40 dark:hover:border-dark-navy/50 hover:shadow-soft-md transition-all flex items-center justify-between gap-3 shadow-soft-xs cursor-pointer"

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../lib/api';
+import { api, API_BASE, apiUpload } from '../lib/api';
 import RadialProgress from '../components/ui/RadialProgress';
 import ColumnSelector from '../components/ui/ColumnSelector';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
@@ -287,26 +287,28 @@ export default function TugasKegiatanPage() {
     if (!file) return;
     setImporting(true);
     setImportResult(null);
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch('/api/tugas/import-excel', {
-      method: 'POST', credentials: 'include', body: fd,
-    });
-    const json = await res.json();
-    setImporting(false);
-    setImportResult(json.data ?? null);
-    showToast(json.message);
-    if (json.success) load();
-    e.target.value = '';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const json = await apiUpload('/tugas/import-excel', fd);
+      setImportResult(json.data ?? null);
+      showToast(json.message);
+      if (json.success) load();
+    } catch (err) {
+      showToast('Gagal mengimpor data excel.');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
   }
 
   function handleExport() {
     const qs = buildQuery(filters);
-    window.open('/api/tugas/export-excel' + qs, '_blank');
+    window.open(API_BASE + '/tugas/export-excel' + qs, '_blank');
   }
 
   function handleTemplate() {
-    window.open('/api/tugas/template-excel', '_blank');
+    window.open(API_BASE + '/tugas/template-excel', '_blank');
   }
 
   // ─── Render ─────────────────────────────────────────────────────────────────

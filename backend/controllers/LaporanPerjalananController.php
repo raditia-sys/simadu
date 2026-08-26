@@ -26,7 +26,7 @@ class LaporanPerjalananController
     private static function authorizeOwnerOrAdmin(array $laporan): void
     {
         $currentUser = requireAuth();
-        if ($currentUser['role'] !== 'superadmin' && (int)($laporan['created_by'] ?? 0) !== (int)$currentUser['id']) {
+        if (!in_array($currentUser['role'], ['superadmin', 'admin'], true) && (int)($laporan['created_by'] ?? 0) !== (int)$currentUser['id']) {
             respond(false, null, 'Anda tidak memiliki hak akses untuk data perjalanan dinas ini.', 403);
         }
     }
@@ -735,7 +735,15 @@ class LaporanPerjalananController
 
         // Isi semua placeholder teks biasa (Pegawai, NIP, Jabatan, TglSTugas, TglTugas, Hari, Kecamatan, dst)
         foreach ($vars as $key => $value) {
-            $proc->setValue($key, htmlspecialchars((string)($value ?? ''), ENT_XML1, 'UTF-8'));
+            $valStr = (string)($value ?? '');
+            if (str_contains($valStr, "\n")) {
+                $safeVal = str_replace("\n", '</w:t><w:br/><w:t>', htmlspecialchars($valStr, ENT_XML1, 'UTF-8'));
+            } else {
+                $safeVal = htmlspecialchars($valStr, ENT_XML1, 'UTF-8');
+            }
+            $proc->setValue($key, $safeVal);
+            $proc->setValue(lcfirst($key), $safeVal);
+            $proc->setValue(strtolower($key), $safeVal);
         }
 
         // ── Rundown: Isi placeholder ${rentang_waktu} untuk setiap baris kegiatan ──
@@ -754,12 +762,60 @@ class LaporanPerjalananController
         // Bersihkan jika ada sisa placeholder rentang_waktu yang belum terisi
         $proc->setValue('rentang_waktu', '-');
 
-        // ── Foto: ganti placeholder ${Foto} dengan keterangan foto (teks) ───
+        // ── Foto: Sisipkan gambar dokumentasi asli ke dalam template Word ───
+        $validFotos = [];
         if (!empty($fotos)) {
-            $fotoText = implode('; ', array_map(fn($f) => $f['keterangan'] ?: basename($f['path']), $fotos));
-            $proc->setValue('Foto', htmlspecialchars($fotoText, ENT_XML1, 'UTF-8'));
-        } else {
+            foreach ($fotos as $f) {
+                $fullPath = ROOT_DIR . '/' . ltrim($f['path'], '/');
+                if (file_exists($fullPath)) {
+                    $validFotos[] = [
+                        'path'       => $fullPath,
+                        'keterangan' => trim($f['keterangan'] ?? ''),
+                    ];
+                }
+            }
+        }
+
+        if (empty($validFotos)) {
             $proc->setValue('Foto', '-');
+        } elseif (count($validFotos) === 1) {
+            $first = $validFotos[0];
+            if (!empty($first['keterangan'])) {
+                $proc->setValue('Foto', '${Foto_0}</w:t></w:r></w:p><w:p><w:r><w:t>' . htmlspecialchars($first['keterangan'], ENT_XML1, 'UTF-8'));
+                $proc->setImageValue('Foto_0', [
+                    'path'   => $first['path'],
+                    'width'  => 400,
+                    'height' => 250,
+                    'ratio'  => true,
+                ]);
+            } else {
+                $proc->setImageValue('Foto', [
+                    'path'   => $first['path'],
+                    'width'  => 400,
+                    'height' => 250,
+                    'ratio'  => true,
+                ]);
+            }
+        } else {
+            // Beberapa foto sekaligus
+            $placeholders = [];
+            foreach ($validFotos as $idx => $vf) {
+                $ph = '${Foto_' . $idx . '}';
+                if (!empty($vf['keterangan'])) {
+                    $ph .= '</w:t></w:r></w:p><w:p><w:r><w:t>' . htmlspecialchars($vf['keterangan'], ENT_XML1, 'UTF-8');
+                }
+                $placeholders[] = $ph;
+            }
+            $proc->setValue('Foto', implode('</w:t></w:r></w:p><w:p><w:r><w:t>', $placeholders));
+
+            foreach ($validFotos as $idx => $vf) {
+                $proc->setImageValue('Foto_' . $idx, [
+                    'path'   => $vf['path'],
+                    'width'  => 400,
+                    'height' => 250,
+                    'ratio'  => true,
+                ]);
+            }
         }
 
         $proc->saveAs($outPath);

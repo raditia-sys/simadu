@@ -7,7 +7,7 @@ class MasterWilayahController
 {
     public static function index(): void
     {
-        requireRole('superadmin');
+        requireAuth();
         $pdo    = Database::connect();
         $search = query('q', '');
 
