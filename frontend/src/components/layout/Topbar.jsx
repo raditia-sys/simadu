@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+﻿import { useEffect, useState, useRef } from 'react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from './NotificationBell';
-import ProfileModal from './ProfileModal';
+import ChangeMyPasswordModal from './ChangeMyPasswordModal';
 
 // ─── Route → breadcrumb label map ────────────────────────────────────────────
 const BREADCRUMB_MAP = {
@@ -40,7 +40,10 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
   const location = useLocation();
   const navigate  = useNavigate();
   const { user, logout } = useAuth();
-  const [profileOpen, setProfileOpen] = useState(false);
+
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [changePassOpen, setChangePassOpen]     = useState(false);
+  const dropdownRef = useRef(null);
 
   const crumbs = BREADCRUMB_MAP[location.pathname] || ['Halaman'];
 
@@ -49,13 +52,27 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
     document.title = pageTitle ? `SIMADU - ${pageTitle}` : 'SIMADU';
   }, [location.pathname, crumbs]);
 
+  // Tutup user dropdown saat klik di luar
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setUserDropdownOpen(false);
+      }
+    }
+    if (userDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userDropdownOpen]);
+
   async function handleLogout() {
+    setUserDropdownOpen(false);
     await logout();
     navigate('/login', { replace: true });
   }
 
   return (
-    <header className="topbar-h flex items-center justify-between px-4 gap-4 border-b border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface flex-shrink-0">
+    <header className="topbar-h flex items-center justify-between px-4 gap-4 border-b border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface flex-shrink-0 relative z-30">
 
       {/* ── Left: Sidebar toggle + Breadcrumb ── */}
       <div className="flex items-center gap-3 min-w-0">
@@ -93,7 +110,7 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
       {/* ── Right: Notifications + Dark mode toggle + User info ── */}
       <div className="flex items-center gap-2 flex-shrink-0">
 
-        {/* Notifikasi Web Push & Email */}
+        {/* Notifikasi Web Push */}
         <NotificationBell />
 
         <button
@@ -116,13 +133,13 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
 
         <div className="w-px h-5 bg-border-soft dark:bg-dark-border-soft" />
 
-        {/* User Info & Profile Modal Trigger */}
-        <div className="flex items-center gap-2">
+        {/* User Profile Popover Trigger */}
+        <div className="relative" ref={dropdownRef}>
           <button
             type="button"
-            onClick={() => setProfileOpen(true)}
-            title="Klik untuk buka Profil & Pengaturan Notifikasi"
-            className="flex items-center gap-2 p-1 -m-1 rounded-xl hover:bg-navy/5 dark:hover:bg-dark-navy/10 transition-colors text-left"
+            onClick={() => setUserDropdownOpen(prev => !prev)}
+            title="Klik untuk membuka menu akun"
+            className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-navy/5 dark:hover:bg-dark-navy/10 transition-colors text-left border border-transparent hover:border-border-soft dark:hover:border-dark-border-soft"
           >
             <div className="w-7 h-7 rounded-lg bg-navy/10 dark:bg-dark-navy/20 flex items-center justify-center flex-shrink-0">
               <svg className="w-4 h-4 text-navy dark:text-dark-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -130,33 +147,91 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
               </svg>
             </div>
             <div className="hidden sm:block min-w-0">
-              <p className="text-xs font-semibold text-text-primary dark:text-dark-text-primary leading-tight truncate max-w-28">
-                {user?.nama || '—'}
+              <p className="text-xs font-semibold text-text-primary dark:text-dark-text-primary leading-tight truncate max-w-32">
+                {user?.nama || 'Pengguna'}
               </p>
               <p className="text-[10px] text-text-secondary dark:text-dark-text-secondary leading-tight capitalize">
-                {user?.role || 'admin'}
+                {user?.role === 'superadmin' ? 'Super Admin' : 'Admin'}
               </p>
             </div>
-          </button>
-
-          <button
-            id="logout-btn"
-            title="Keluar"
-            aria-label="Logout"
-            className="p-1.5 rounded-lg text-text-secondary hover:text-accent-orange hover:bg-accent-orange/5 dark:text-dark-text-secondary dark:hover:text-dark-accent-orange dark:hover:bg-dark-accent-orange/10 transition-all"
-            onClick={handleLogout}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+            <svg className={`w-3.5 h-3.5 text-text-secondary transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
+
+          {/* User Popover Menu */}
+          {userDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-surface dark:bg-dark-surface border border-border-soft dark:border-dark-border-soft shadow-soft-xl p-3 z-50 animate-in fade-in-0 zoom-in-95 duration-150 space-y-3">
+              {/* Profile Card Header */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-border-soft dark:border-dark-border-soft space-y-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-text-primary dark:text-dark-text-primary truncate">
+                    {user?.nama || '—'}
+                  </p>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy capitalize">
+                    {user?.role || 'admin'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary">
+                  Username: <span className="font-mono">{user?.username}</span>
+                </p>
+                <div className="flex items-center gap-1 text-[11px] text-text-secondary dark:text-dark-text-secondary pt-0.5 truncate" title={user?.email || 'Email belum diatur'}>
+                  <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                  </svg>
+                  <span className="truncate">{user?.email || 'Email belum diatur'}</span>
+                </div>
+              </div>
+
+              {/* Menu Actions */}
+              <div className="space-y-1 pt-1">
+                {user?.role === 'superadmin' && (
+                  <Link
+                    to="/master/users"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:text-dark-text-primary dark:hover:bg-dark-navy/10 rounded-xl transition-colors"
+                  >
+                    <svg className="w-4 h-4 text-navy dark:text-dark-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                    </svg>
+                    <span>Master Akun Admin</span>
+                  </Link>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserDropdownOpen(false);
+                    setChangePassOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:text-dark-text-primary dark:hover:bg-dark-navy/10 rounded-xl transition-colors"
+                >
+                  <svg className="w-4 h-4 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                  </svg>
+                  <span>Ganti Password Saya</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-accent-orange hover:bg-accent-orange/10 dark:text-dark-accent-orange dark:hover:bg-dark-accent-orange/15 rounded-xl transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                  </svg>
+                  <span>Keluar (Logout)</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Modal Profil & Pengaturan Notifikasi */}
-      <ProfileModal
-        open={profileOpen}
-        onClose={() => setProfileOpen(false)}
+      {/* Modal Ganti Password Mandiri */}
+      <ChangeMyPasswordModal
+        open={changePassOpen}
+        onClose={() => setChangePassOpen(false)}
       />
     </header>
   );

@@ -256,20 +256,30 @@ export default function MasterUsersPage() {
     }
   }
 
-  // Test Email Notification
-  async function handleTestEmail() {
-    setTestingEmail(true);
+  // State uji coba email per baris
+  const [sendingEmailId, setSendingEmailId] = useState(null);
+
+  // Kirim Email Uji Coba ke akun spesifik
+  async function handleSendRowTestEmail(row) {
+    if (!row.email) {
+      showToast(`Akun ${row.nama} belum memiliki alamat email.`);
+      return;
+    }
+    setSendingEmailId(row.id);
     try {
-      const res = await api.post('/notifications/test-email', {});
+      const res = await api.post('/notifications/test-email', {
+        user_id: row.id,
+        email: row.email,
+      });
       if (res.success) {
-        showToast(res.message || 'Email uji coba berhasil dikirim!');
+        showToast(res.message || `Email uji coba berhasil dikirim ke ${row.email}!`);
       } else {
         showToast(res.message || 'Gagal mengirim email uji coba.');
       }
     } catch (err) {
       showToast(err.message || 'Gagal mengirim email.');
     } finally {
-      setTestingEmail(false);
+      setSendingEmailId(null);
     }
   }
 
@@ -411,6 +421,29 @@ export default function MasterUsersPage() {
         const isSelf = currentUser && currentUser.id === row.id;
         return (
           <div className="flex items-center justify-end gap-1.5">
+            {/* Kirim Email Uji Coba */}
+            <button
+              onClick={() => handleSendRowTestEmail(row)}
+              disabled={sendingEmailId === row.id || !row.email}
+              title={row.email ? `Kirim Email Uji Coba ke ${row.email} (${row.nama})` : 'Akun belum memiliki email'}
+              className={`p-1.5 rounded-lg transition-colors ${
+                !row.email
+                  ? 'text-text-secondary/30 dark:text-dark-text-secondary/30 cursor-not-allowed'
+                  : 'text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40'
+              }`}
+            >
+              {sendingEmailId === row.id ? (
+                <svg className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                </svg>
+              )}
+            </button>
+
             {/* Ganti Password */}
             <button
               onClick={() => openChangePassword(row)}
@@ -478,43 +511,17 @@ export default function MasterUsersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Uji Push Notification */}
-          <button
-            onClick={handleTestPush}
-            disabled={testingPush}
-            className="btn-secondary text-xs flex items-center gap-1.5"
-            title="Kirim notifikasi pengujian ke browser ini"
-          >
-            <svg className="w-3.5 h-3.5 text-accent-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-            </svg>
-            {testingPush ? 'Mengirim...' : 'Uji Push Browser'}
-          </button>
-
-          {/* Uji Kirim Email */}
-          <button
-            onClick={handleTestEmail}
-            disabled={testingEmail}
-            className="btn-secondary text-xs flex items-center gap-1.5"
-            title="Kirim email uji coba ke alamat email akun Anda"
-          >
-            <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-            </svg>
-            {testingEmail ? 'Mengirim...' : 'Uji Kirim Email'}
-          </button>
-
           {/* Cek Deadline Tugas */}
           <button
             onClick={handleCheckDeadlines}
             disabled={checkingDeadlines}
             className="btn-secondary text-xs flex items-center gap-1.5"
-            title="Periksa tugas H-3, H-1, Hari H dan kirim notifikasi"
+            title="Periksa tugas H-3, H-1, Hari H dan kirim notifikasi rekap email ke seluruh admin"
           >
             <svg className={`w-3.5 h-3.5 text-navy dark:text-dark-navy ${checkingDeadlines ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
-            {checkingDeadlines ? 'Memeriksa...' : 'Cek Deadline Tugas'}
+            {checkingDeadlines ? 'Memeriksa...' : 'Cek Deadline & Rekap Email'}
           </button>
 
           {/* Tambah Akun Baru */}

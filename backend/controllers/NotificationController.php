@@ -137,33 +137,41 @@ class NotificationController
     }
 
     /** Uji coba kirim Email notifikasi ke pengguna yang sedang login */
+    /** Uji coba kirim Email notifikasi ke akun terpilih (Superadmin Only) */
     public static function testEmail(): void
     {
-        $user = requireAuth();
-        $pdo  = Database::connect();
+        $currentUser = requireRole('superadmin');
+        $pdo         = Database::connect();
+        $body        = requestBody();
+
+        $targetUserId = !empty($body['user_id']) ? (int)$body['user_id'] : (int)$currentUser['id'];
 
         $stmt = $pdo->prepare('
-            SELECT u.id, u.nama, 
+            SELECT u.id, u.nama, u.username,
                    COALESCE(NULLIF(u.email, ""), NULLIF(p.kontak, "")) AS email 
             FROM users u 
             LEFT JOIN petugas p ON p.id = u.petugas_id 
             WHERE u.id = ?
         ');
-        $stmt->execute([(int)$user['id']]);
+        $stmt->execute([$targetUserId]);
         $u = $stmt->fetch();
 
+        if (!$u) {
+            respond(false, null, 'Akun target tidak ditemukan.', 404);
+        }
+
         $targetEmail = trim($body['email'] ?? '') ?: ($u['email'] ?? '');
-        $targetName  = $u['nama'] ?? $user['nama'];
+        $targetName  = $u['nama'] ?? $u['username'];
 
         if (!$targetEmail || !filter_var($targetEmail, FILTER_VALIDATE_EMAIL)) {
-            respond(false, null, 'Akun Anda belum memiliki alamat email yang valid. Silakan daftarkan email pada menu Master Akun Admin atau Profil Saya.', 422);
+            respond(false, null, "Akun {$targetName} belum memiliki alamat email yang valid di database.", 422);
         }
 
         require_once ROOT_DIR . '/services/MailService.php';
         $res = MailService::sendTestEmail($targetEmail, $targetName);
 
         if ($res['success']) {
-            respond(true, ['email' => $targetEmail], "Email uji coba berhasil dikirim ke {$targetEmail}. Silakan periksa kotak masuk (Inbox/Spam).");
+            respond(true, ['email' => $targetEmail, 'nama' => $targetName], "Email uji coba berhasil dikirim ke {$targetEmail} ({$targetName}). Silakan periksa kotak masuk (Inbox/Spam).");
         } else {
             respond(false, null, $res['message'] ?? 'Gagal mengirim email.', 500);
         }

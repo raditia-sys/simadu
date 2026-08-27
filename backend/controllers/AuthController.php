@@ -41,9 +41,14 @@ class AuthController
                 respond(false, null, 'Terlalu banyak percobaan login gagal. Silakan coba lagi setelah 15 menit.', 429);
             }
 
-            $stmt = $pdo->prepare(
-                'SELECT id, nama, username, password_hash, role FROM users WHERE username = ? LIMIT 1'
-            );
+            $stmt = $pdo->prepare('
+                SELECT u.id, u.petugas_id, u.nama, u.username, u.password_hash, 
+                       COALESCE(NULLIF(u.email, ""), NULLIF(p.kontak, "")) AS email, 
+                       u.role 
+                FROM users u 
+                LEFT JOIN petugas p ON p.id = u.petugas_id 
+                WHERE u.username = ? LIMIT 1
+            ');
             $stmt->execute([$username]);
             $user = $stmt->fetch();
         } catch (Throwable $e) {

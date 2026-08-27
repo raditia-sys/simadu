@@ -72,6 +72,14 @@ class MailService
             $mail->Body    = $htmlBody;
             $mail->AltBody = $altBody ?: strip_tags(str_replace(['<br>', '</td>', '</tr>'], ["\n", " | ", "\n"], $htmlBody));
 
+            // Custom & Deliverability Headers
+            $msgIdDomain = substr(strrchr($cfg['from_email'] ?? 'bps-batanghari.com', '@'), 1) ?: 'bps-batanghari.com';
+            $mail->MessageID = sprintf('<%s.%s@%s>', time(), bin2hex(random_bytes(8)), $msgIdDomain);
+            $mail->addCustomHeader('X-Priority', '3');
+            $mail->addCustomHeader('X-Mailer', 'SIMADU-BPS-Mailer-v1.0');
+            $mail->addCustomHeader('Auto-Submitted', 'auto-generated');
+            $mail->addCustomHeader('Organization', 'BPS Kabupaten Batang Hari');
+
             $mail->send();
             return ['success' => true, 'message' => 'Email berhasil dikirim ke ' . $toEmail];
         } catch (Exception $e) {
