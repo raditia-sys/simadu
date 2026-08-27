@@ -22,10 +22,17 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+function getServiceWorkerConfig() {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '') + '/';
+  const swPath = `${base}sw.js`;
+  return { swPath, scope: base };
+}
+
 export async function registerServiceWorker() {
   if (!isPushSupported()) return null;
   try {
-    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    const { swPath, scope } = getServiceWorkerConfig();
+    const reg = await navigator.serviceWorker.register(swPath, { scope });
     await navigator.serviceWorker.ready;
     return reg;
   } catch (error) {
@@ -37,7 +44,8 @@ export async function registerServiceWorker() {
 export async function checkIsSubscribed() {
   if (!isPushSupported()) return false;
   try {
-    const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+    const { swPath } = getServiceWorkerConfig();
+    const reg = await navigator.serviceWorker.getRegistration(swPath);
     if (!reg) return false;
     const sub = await reg.pushManager.getSubscription();
     return sub !== null;
@@ -105,7 +113,8 @@ export async function subscribeToPush(api) {
 export async function unsubscribeFromPush(api) {
   if (!isPushSupported()) return false;
   try {
-    const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+    const { swPath } = getServiceWorkerConfig();
+    const reg = await navigator.serviceWorker.getRegistration(swPath);
     if (reg) {
       const sub = await reg.pushManager.getSubscription();
       if (sub) {

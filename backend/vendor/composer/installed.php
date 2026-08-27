@@ -3,7 +3,7 @@
         'name' => 'simadu/backend',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'ed6650cbb9981ecfa5f139c28b7778f558f9dee7',
+        'reference' => '5c7053a934a51659651020f0c01a97846f6ed310',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -130,6 +130,15 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'phpmailer/phpmailer' => array(
+            'pretty_version' => 'v7.1.1',
+            'version' => '7.1.1.0',
+            'reference' => '1bc1716a507a65e039d4ac9d9adebbbd0d346e15',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../phpmailer/phpmailer',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'phpoffice/math' => array(
             'pretty_version' => '0.3.0',
             'version' => '0.3.0.0',
@@ -235,7 +244,7 @@
         'simadu/backend' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'ed6650cbb9981ecfa5f139c28b7778f558f9dee7',
+            'reference' => '5c7053a934a51659651020f0c01a97846f6ed310',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

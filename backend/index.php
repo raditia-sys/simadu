@@ -87,10 +87,10 @@ $routes = [
         respond(true, ['status' => 'ok', 'version' => '1.0.0'], 'SIMADU API OK');
     },
 
-    // Auth
-    'POST /api/auth/login'  => [AuthController::class,  'login'],
-    'POST /api/auth/logout' => [AuthController::class,  'logout'],
-    'GET /api/me'           => [AuthController::class,  'me'],
+    'POST /api/auth/login'   => [AuthController::class,  'login'],
+    'POST /api/auth/logout'  => [AuthController::class,  'logout'],
+    'GET /api/me'            => [AuthController::class,  'me'],
+    'PUT /api/auth/profile'  => [AuthController::class,  'updateProfile'],
 
     // ── Dashboard ────────────────────────────────────────────────────────────
     'GET /api/dashboard/init'             => [DashboardController::class, 'init'],
@@ -190,11 +190,12 @@ $routes = [
     'PUT /api/users/{id}'              => [UserController::class, 'update'],
     'DELETE /api/users/{id}'           => [UserController::class, 'destroy'],
 
-    // ── Web Push Notification ────────────────────────────────────────────────
+    // ── Web Push & Email Notification ────────────────────────────────────────
     'GET /api/notifications/vapid-key'       => [NotificationController::class, 'getVapidPublicKey'],
     'POST /api/notifications/subscribe'      => [NotificationController::class, 'subscribe'],
     'POST /api/notifications/unsubscribe'    => [NotificationController::class, 'unsubscribe'],
     'POST /api/notifications/test-push'      => [NotificationController::class, 'testPush'],
+    'POST /api/notifications/test-email'     => [NotificationController::class, 'testEmail'],
     'POST /api/notifications/check-deadlines'=> [NotificationController::class, 'checkDeadlines'],
     'GET /api/notifications/check-deadlines' => [NotificationController::class, 'checkDeadlines'],
 ];

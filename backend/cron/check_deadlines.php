@@ -119,10 +119,10 @@ foreach ($tasks as $task) {
     $payload = json_encode([
         'title' => $title,
         'body'  => $body,
-        'icon'  => '/logo_bps.png',
-        'badge' => '/favicon.ico',
+        'icon'  => '/simadu/logo_bps.png',
+        'badge' => '/simadu/favicon.png',
         'data'  => [
-            'url'      => '/kelola-tugas',
+            'url'      => '/simadu/kelola-tugas',
             'tugas_id' => $task['id']
         ]
     ]);
@@ -149,18 +149,29 @@ foreach ($tasks as $task) {
     $notifiedCount++;
 }
 
-// Flush notifications
-$sentSuccess = 0;
-foreach ($webPush->flush() as $report) {
-    if ($report->isSuccess()) {
-        $sentSuccess++;
-    } else {
-        $endpoint = $report->getRequest()->getUri()->__toString();
-        if ($report->isSubscriptionExpired()) {
-            $stmtDel = $pdo->prepare('DELETE FROM user_push_subscriptions WHERE endpoint = ?');
-            $stmtDel->execute([$endpoint]);
+// 3. Kirim Daily Email Digest ke semua admin yang memiliki email terdaftar
+require_once ROOT_DIR . '/services/MailService.php';
+$stmtEmailUsers = $pdo->query("SELECT id, nama, email, username FROM users WHERE email IS NOT NULL AND email != ''");
+$emailUsers = $stmtEmailUsers->fetchAll(PDO::FETCH_ASSOC);
+$emailSentCount = 0;
+
+foreach ($emailUsers as $eUser) {
+    $stmtCheckMail = $pdo->prepare("
+        SELECT id FROM notification_logs 
+        WHERE user_id = ? AND tipe = 'email_digest' AND DATE(sent_at) = CURDATE()
+    ");
+    $stmtCheckMail->execute([(int)$eUser['id']]);
+    if (!$stmtCheckMail->fetch()) {
+        $mailRes = MailService::sendDeadlineDigest($eUser, $tasks);
+        if ($mailRes['success']) {
+            $emailSentCount++;
+            $stmtLogMail = $pdo->prepare("
+                INSERT INTO notification_logs (tugas_id, user_id, tipe, threshold, sent_at)
+                VALUES (NULL, ?, 'email_digest', 'daily', NOW())
+            ");
+            $stmtLogMail->execute([(int)$eUser['id']]);
         }
     }
 }
 
-echo "[" . date('Y-m-d H:i:s') . "] Pengecekan selesai. Berhasil mengirim $sentSuccess push notification untuk $notifiedCount tugas.\n";
+echo "[" . date('Y-m-d H:i:s') . "] Pengecekan selesai. Berhasil mengirim $sentSuccess Web Push dan $emailSentCount Email Rekap Harian untuk $notifiedCount tugas.\n";

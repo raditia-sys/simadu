@@ -72,6 +72,7 @@ class AuthController
             'id'       => (int) $user['id'],
             'nama'     => $user['nama'],
             'username' => $user['username'],
+            'email'    => $user['email'] ?? null,
             'role'     => $user['role'],
         ];
         $_SESSION['user'] = $userData;
@@ -108,6 +109,75 @@ class AuthController
         if (empty($_SESSION['user'])) {
             respond(false, null, 'Unauthenticated.', 401);
         }
+
+        try {
+            $pdo = Database::connect();
+            $stmt = $pdo->prepare('
+                SELECT u.id, u.nama, u.username, 
+                       COALESCE(NULLIF(u.email, ""), NULLIF(p.kontak, "")) AS email, 
+                       u.role 
+                FROM users u 
+                LEFT JOIN petugas p ON p.id = u.petugas_id 
+                WHERE u.id = ?
+            ');
+            $stmt->execute([(int)$_SESSION['user']['id']]);
+            $u = $stmt->fetch();
+            if ($u) {
+                $_SESSION['user'] = [
+                    'id'       => (int) $u['id'],
+                    'nama'     => $u['nama'],
+                    'username' => $u['username'],
+                    'email'    => $u['email'] ?? null,
+                    'role'     => $u['role'],
+                ];
+            }
+        } catch (Throwable $e) {}
+
         respond(true, $_SESSION['user']);
+    }
+
+    /** Update profil akun sendiri (Superadmin & Admin) */
+    public static function updateProfile(): void
+    {
+        $currentUser = requireAuth();
+        $body = requestBody();
+
+        validateRequired($body, ['nama' => 'Nama Lengkap']);
+
+        $nama     = trim($body['nama']);
+        $email    = !empty($body['email']) ? trim($body['email']) : null;
+        $password = !empty($body['password']) ? $body['password'] : null;
+
+        if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            respond(false, null, 'Format alamat email tidak valid.', 422);
+        }
+
+        if ($password && strlen($password) < 6) {
+            respond(false, null, 'Password baru minimal 6 karakter.', 422);
+        }
+
+        $pdo = Database::connect();
+
+        if ($password) {
+            $hash = password_hash($password, PASSWORD_BCRYPT);
+            $stmt = $pdo->prepare('UPDATE users SET nama = ?, email = ?, password_hash = ?, plain_password = ?, updated_at = NOW() WHERE id = ?');
+            $stmt->execute([$nama, $email, $hash, $password, (int)$currentUser['id']]);
+        } else {
+            $stmt = $pdo->prepare('UPDATE users SET nama = ?, email = ?, updated_at = NOW() WHERE id = ?');
+            $stmt->execute([$nama, $email, (int)$currentUser['id']]);
+        }
+
+        $_SESSION['user']['nama']  = $nama;
+        $_SESSION['user']['email'] = $email;
+
+        logActivity($pdo, (int)$currentUser['id'], 'update_profile', 'users', (int)$currentUser['id'], "Update profil akun: {$currentUser['username']}");
+
+        respond(true, [
+            'id'       => (int)$currentUser['id'],
+            'nama'     => $nama,
+            'username' => $currentUser['username'],
+            'email'    => $email,
+            'role'     => $currentUser['role'],
+        ], 'Profil akun berhasil diperbarui.');
     }
 }

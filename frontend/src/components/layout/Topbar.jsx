@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from './NotificationBell';
+import ProfileModal from './ProfileModal';
 
 // ─── Route → breadcrumb label map ────────────────────────────────────────────
 const BREADCRUMB_MAP = {
@@ -39,6 +40,7 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
   const location = useLocation();
   const navigate  = useNavigate();
   const { user, logout } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const crumbs = BREADCRUMB_MAP[location.pathname] || ['Halaman'];
 
@@ -91,7 +93,7 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
       {/* ── Right: Notifications + Dark mode toggle + User info ── */}
       <div className="flex items-center gap-2 flex-shrink-0">
 
-        {/* Notifikasi Web Push */}
+        {/* Notifikasi Web Push & Email */}
         <NotificationBell />
 
         <button
@@ -114,20 +116,28 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
 
         <div className="w-px h-5 bg-border-soft dark:bg-dark-border-soft" />
 
+        {/* User Info & Profile Modal Trigger */}
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-navy/10 dark:bg-dark-navy/20 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-navy dark:text-dark-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-            </svg>
-          </div>
-          <div className="hidden sm:block min-w-0">
-            <p className="text-xs font-semibold text-text-primary dark:text-dark-text-primary leading-tight truncate max-w-28">
-              {user?.nama || '—'}
-            </p>
-            <p className="text-[10px] text-text-secondary dark:text-dark-text-secondary leading-tight capitalize">
-              {user?.role || 'admin'}
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            title="Klik untuk buka Profil & Pengaturan Notifikasi"
+            className="flex items-center gap-2 p-1 -m-1 rounded-xl hover:bg-navy/5 dark:hover:bg-dark-navy/10 transition-colors text-left"
+          >
+            <div className="w-7 h-7 rounded-lg bg-navy/10 dark:bg-dark-navy/20 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-navy dark:text-dark-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+              </svg>
+            </div>
+            <div className="hidden sm:block min-w-0">
+              <p className="text-xs font-semibold text-text-primary dark:text-dark-text-primary leading-tight truncate max-w-28">
+                {user?.nama || '—'}
+              </p>
+              <p className="text-[10px] text-text-secondary dark:text-dark-text-secondary leading-tight capitalize">
+                {user?.role || 'admin'}
+              </p>
+            </div>
+          </button>
 
           <button
             id="logout-btn"
@@ -142,6 +152,12 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
           </button>
         </div>
       </div>
+
+      {/* Modal Profil & Pengaturan Notifikasi */}
+      <ProfileModal
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+      />
     </header>
   );
 }

@@ -20,12 +20,17 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const base = self.registration.scope ? new URL(self.registration.scope).pathname.replace(/\/+$/, '') : '/simadu';
   const title = data.title || 'SIMADU — BPS Kab. Batang Hari';
+  const iconUrl = data.icon ? (data.icon.startsWith('http') || data.icon.startsWith(base) ? data.icon : `${base}${data.icon.startsWith('/') ? '' : '/'}${data.icon}`) : `${base}/favicon.png`;
+  const badgeUrl = data.badge ? (data.badge.startsWith('http') || data.badge.startsWith(base) ? data.badge : `${base}${data.badge.startsWith('/') ? '' : '/'}${data.badge}`) : `${base}/favicon.png`;
+
   const options = {
     body: data.body || 'Ada pembaruan status tugas kegiatan statistik.',
-    icon: data.icon || '/favicon.ico',
-    badge: data.badge || '/favicon.ico',
-    vibrate: [100, 50, 100],
+    icon: iconUrl,
+    badge: badgeUrl,
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
     data: data.data || { url: '/dashboard' },
     actions: [
       { action: 'open', title: 'Buka SIMADU' },
@@ -45,14 +50,24 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  const targetUrl = (event.notification.data && event.notification.data.url) ? event.notification.data.url : '/dashboard';
+  const rawUrl = (event.notification.data && event.notification.data.url) ? event.notification.data.url : '/dashboard';
+  let targetUrl;
+  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+    targetUrl = rawUrl;
+  } else {
+    const cleanPath = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
+    const base = self.registration.scope ? new URL(self.registration.scope).pathname.replace(/\/+$/, '') : '/simadu';
+    targetUrl = cleanPath.startsWith(base) ? cleanPath : `${base}${cleanPath}`;
+  }
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       // Jika ada window SIMADU yang sudah terbuka, fokuskan dan arahkan URL
       for (const client of windowClients) {
         if ('focus' in client) {
-          client.navigate(targetUrl);
+          if ('navigate' in client) {
+            client.navigate(targetUrl);
+          }
           return client.focus();
         }
       }

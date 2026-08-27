@@ -122,9 +122,9 @@ class NotificationController
         $payload = json_encode([
             'title' => 'SIMADU — Uji Coba Notifikasi',
             'body'  => 'Halo ' . htmlspecialchars($user['nama']) . '! Notifikasi Web Push SIMADU berhasil terhubung ke browser perangkat Anda.',
-            'icon'  => '/logo_bps.png',
-            'badge' => '/favicon.ico',
-            'data'  => ['url' => '/kelola-tugas']
+            'icon'  => '/simadu/logo_bps.png',
+            'badge' => '/simadu/favicon.png',
+            'data'  => ['url' => '/simadu/kelola-tugas']
         ]);
 
         $sentCount = self::sendPushToSubscriptions($subs, $payload);
@@ -136,20 +136,58 @@ class NotificationController
         }
     }
 
-    /** Cek deadline dan kirim notifikasi otomatis */
+    /** Uji coba kirim Email notifikasi ke pengguna yang sedang login */
+    public static function testEmail(): void
+    {
+        $user = requireAuth();
+        $pdo  = Database::connect();
+
+        $stmt = $pdo->prepare('
+            SELECT u.id, u.nama, 
+                   COALESCE(NULLIF(u.email, ""), NULLIF(p.kontak, "")) AS email 
+            FROM users u 
+            LEFT JOIN petugas p ON p.id = u.petugas_id 
+            WHERE u.id = ?
+        ');
+        $stmt->execute([(int)$user['id']]);
+        $u = $stmt->fetch();
+
+        $targetEmail = trim($body['email'] ?? '') ?: ($u['email'] ?? '');
+        $targetName  = $u['nama'] ?? $user['nama'];
+
+        if (!$targetEmail || !filter_var($targetEmail, FILTER_VALIDATE_EMAIL)) {
+            respond(false, null, 'Akun Anda belum memiliki alamat email yang valid. Silakan daftarkan email pada menu Master Akun Admin atau Profil Saya.', 422);
+        }
+
+        require_once ROOT_DIR . '/services/MailService.php';
+        $res = MailService::sendTestEmail($targetEmail, $targetName);
+
+        if ($res['success']) {
+            respond(true, ['email' => $targetEmail], "Email uji coba berhasil dikirim ke {$targetEmail}. Silakan periksa kotak masuk (Inbox/Spam).");
+        } else {
+            respond(false, null, $res['message'] ?? 'Gagal mengirim email.', 500);
+        }
+    }
+
+    /** Cek deadline dan kirim notifikasi otomatis (Web Push & Email Digest) */
     public static function checkDeadlines(): void
     {
-        requireAuth();
+        $cronKey = query('key');
+        $validKey = 'bps1504_cron_key';
+        if ($cronKey !== $validKey) {
+            requireAuth();
+        }
         $pdo = Database::connect();
 
-        // Cari tugas belum selesai yang mendekati deadline (H-3, H-1, H-0)
+        // Cari tugas belum selesai yang mendekati deadline (H-5, H-3, H-1, H-0)
         $sql = "
             SELECT
                 t.id, t.target_sampel, t.sampel_selesai, t.deadline,
                 DATEDIFF(t.deadline, CURDATE()) AS sisa_hari,
                 s.nama_survei, s.kode_survei,
                 w.kecamatan, w.desa_kelurahan,
-                p.nama AS nama_petugas
+                p.nama AS nama_petugas,
+                ROUND(t.sampel_selesai / NULLIF(t.target_sampel, 0) * 100, 1) AS persen
             FROM tugas_kegiatan t
             JOIN master_survei s ON s.id = t.survei_id
             JOIN master_wilayah w ON w.id = t.wilayah_id
@@ -166,7 +204,7 @@ class NotificationController
             respond(true, ['notified_tasks' => 0, 'tasks' => []], 'Tidak ada tugas yang mendekati deadline (H-5, H-3, H-1, Hari H) saat ini.');
         }
 
-        // Ambil semua subscriptions admin
+        // 1. KIRIM WEB PUSH NOTIFICATION
         $stmtSubs = $pdo->query("
             SELECT ups.*, u.id AS user_id, u.nama AS user_nama, u.role
             FROM user_push_subscriptions ups
@@ -174,93 +212,117 @@ class NotificationController
         ");
         $allSubs = $stmtSubs->fetchAll();
 
-        if (empty($allSubs)) {
-            respond(true, ['notified_tasks' => count($tasks), 'sent_devices' => 0], 'Daftar tugas terdeteksi, namun belum ada browser admin yang mengaktifkan notifikasi.');
-        }
-
         $sentTasksCount = 0;
         $totalPushes = 0;
 
-        foreach ($tasks as $task) {
-            $sisaHari = (int)$task['sisa_hari'];
-            $threshold = match ($sisaHari) {
-                5 => 'H-5',
-                3 => 'H-3',
-                1 => 'H-1',
-                0 => 'H-0',
-                default => "H-$sisaHari",
-            };
+        if (!empty($allSubs)) {
+            foreach ($tasks as $task) {
+                $sisaHari = (int)$task['sisa_hari'];
+                $threshold = match ($sisaHari) {
+                    5 => 'H-5',
+                    3 => 'H-3',
+                    1 => 'H-1',
+                    0 => 'H-0',
+                    default => "H-$sisaHari",
+                };
 
-            $labelStatus = match ($sisaHari) {
-                5 => '5 hari lagi (H-5)',
-                3 => '3 hari lagi (H-3)',
-                1 => 'besok (H-1)',
-                0 => 'HARI INI (Hari H)',
-                default => "$sisaHari hari lagi",
-            };
+                $labelStatus = match ($sisaHari) {
+                    5 => '5 hari lagi (H-5)',
+                    3 => '3 hari lagi (H-3)',
+                    1 => 'besok (H-1)',
+                    0 => 'HARI INI (Hari H)',
+                    default => "$sisaHari hari lagi",
+                };
 
-            // Format tanggal deadline Indo
-            $tglDeadline = date('d/m/Y', strtotime($task['deadline']));
+                $tglDeadline = date('d/m/Y', strtotime($task['deadline']));
 
-            // Filter user yang belum pernah dikirim notifikasi untuk tugas & threshold ini
-            $targetSubs = [];
-            foreach ($allSubs as $sub) {
-                $stmtLog = $pdo->prepare("
-                    SELECT id FROM notification_logs
-                    WHERE tugas_id = ? AND user_id = ? AND threshold = ? AND tipe = 'webpush'
-                ");
-                $stmtLog->execute([(int)$task['id'], (int)$sub['user_id'], $threshold]);
-                if (!$stmtLog->fetch()) {
-                    $targetSubs[] = $sub;
+                // Filter target user yang belum pernah dikirim notifikasi untuk tugas & threshold ini
+                $targetSubs = [];
+                foreach ($allSubs as $sub) {
+                    $stmtLog = $pdo->prepare("
+                        SELECT id FROM notification_logs
+                        WHERE tugas_id = ? AND user_id = ? AND threshold = ? AND tipe = 'webpush'
+                    ");
+                    $stmtLog->execute([(int)$task['id'], (int)$sub['user_id'], $threshold]);
+                    if (!$stmtLog->fetch()) {
+                        $targetSubs[] = $sub;
+                    }
+                }
+
+                if (empty($targetSubs)) {
+                    continue;
+                }
+
+                $wilayah = $task['kecamatan'] . ($task['desa_kelurahan'] ? ' - ' . $task['desa_kelurahan'] : '');
+                $title = "⚠️ Deadline {$threshold}: {$task['nama_survei']}";
+                $body = "Batas akhir {$task['nama_survei']} di {$wilayah} adalah {$labelStatus} ({$tglDeadline}). Progres: {$task['sampel_selesai']}/{$task['target_sampel']} sampel.";
+
+                $payload = json_encode([
+                    'title' => $title,
+                    'body'  => $body,
+                    'icon'  => '/simadu/logo_bps.png',
+                    'badge' => '/simadu/favicon.png',
+                    'data'  => [
+                        'url'      => '/simadu/kelola-tugas',
+                        'tugas_id' => $task['id']
+                    ]
+                ]);
+
+                $sent = self::sendPushToSubscriptions($targetSubs, $payload);
+                if ($sent > 0) {
+                    $sentTasksCount++;
+                    $totalPushes += $sent;
+
+                    $distinctUsers = array_unique(array_column($targetSubs, 'user_id'));
+                    $stmtInsertLog = $pdo->prepare("
+                        INSERT INTO notification_logs (tugas_id, user_id, tipe, threshold, sent_at)
+                        VALUES (?, ?, 'webpush', ?, NOW())
+                    ");
+                    foreach ($distinctUsers as $uid) {
+                        $stmtInsertLog->execute([(int)$task['id'], (int)$uid, $threshold]);
+                    }
                 }
             }
+        }
 
-            if (empty($targetSubs)) {
-                continue; // Sudah pernah dikirim
-            }
+        // 2. KIRIM EMAIL REKAP HARIAN (DAILY DIGEST)
+        $emailSentCount = 0;
+        require_once ROOT_DIR . '/services/MailService.php';
 
-            $wilayah = $task['kecamatan'] . ($task['desa_kelurahan'] ? ' - ' . $task['desa_kelurahan'] : '');
-            $title = "⚠️ Deadline {$threshold}: {$task['nama_survei']}";
-            $body = "Batas akhir {$task['nama_survei']} di {$wilayah} adalah {$labelStatus} ({$tglDeadline}). Progres: {$task['sampel_selesai']}/{$task['target_sampel']} sampel.";
+        $stmtEmailUsers = $pdo->query("SELECT id, nama, email, username FROM users WHERE email IS NOT NULL AND email != ''");
+        $emailUsers = $stmtEmailUsers->fetchAll();
 
-            $payload = json_encode([
-                'title' => $title,
-                'body'  => $body,
-                'icon'  => '/logo_bps.png',
-                'badge' => '/favicon.ico',
-                'data'  => [
-                    'url'      => '/kelola-tugas',
-                    'tugas_id' => $task['id']
-                ]
-            ]);
-
-            $sent = self::sendPushToSubscriptions($targetSubs, $payload);
-            if ($sent > 0) {
-                $sentTasksCount++;
-                $totalPushes += $sent;
-
-                // Catat log pengiriman per user
-                $distinctUsers = array_unique(array_column($targetSubs, 'user_id'));
-                $stmtInsertLog = $pdo->prepare("
-                    INSERT INTO notification_logs (tugas_id, user_id, tipe, threshold, sent_at)
-                    VALUES (?, ?, 'webpush', ?, NOW())
-                ");
-                foreach ($distinctUsers as $uid) {
-                    $stmtInsertLog->execute([(int)$task['id'], (int)$uid, $threshold]);
+        foreach ($emailUsers as $eUser) {
+            $stmtCheckMail = $pdo->prepare("
+                SELECT id FROM notification_logs 
+                WHERE user_id = ? AND tipe = 'email_digest' AND DATE(sent_at) = CURDATE()
+            ");
+            $stmtCheckMail->execute([(int)$eUser['id']]);
+            if (!$stmtCheckMail->fetch()) {
+                $mailRes = MailService::sendDeadlineDigest($eUser, $tasks);
+                if ($mailRes['success']) {
+                    $emailSentCount++;
+                    $stmtLogMail = $pdo->prepare("
+                        INSERT INTO notification_logs (tugas_id, user_id, tipe, threshold, sent_at)
+                        VALUES (NULL, ?, 'email_digest', 'daily', NOW())
+                    ");
+                    $stmtLogMail->execute([(int)$eUser['id']]);
                 }
             }
         }
 
         respond(true, [
-            'tasks_found'     => count($tasks),
-            'tasks_notified'  => $sentTasksCount,
-            'total_pushes'    => $totalPushes,
-        ], "Pengecekan selesai. Berhasil mengirim $totalPushes notifikasi untuk $sentTasksCount tugas.");
+            'tasks_found'      => count($tasks),
+            'tasks_notified'   => $sentTasksCount,
+            'total_pushes'     => $totalPushes,
+            'total_emails'     => $emailSentCount,
+        ], "Pengecekan selesai. Terkirim $totalPushes Web Push dan $emailSentCount Email Rekap Harian.");
     }
 
     /** Helper internal kirim push menggunakan Minishlink\WebPush */
     private static function sendPushToSubscriptions(array $subscriptions, string $payload): int
     {
+        require_once ROOT_DIR . '/vendor/autoload.php';
         $vapidConfig = self::getOrGenerateVapidConfig();
         if (!$vapidConfig || empty($vapidConfig['publicKey'])) return 0;
 

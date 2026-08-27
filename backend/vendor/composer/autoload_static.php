@@ -35,6 +35,7 @@ class ComposerStaticInitd3713dfc40bef2f55d3e3c7edf024ec1
             'PhpOffice\\PhpWord\\' => 18,
             'PhpOffice\\PhpSpreadsheet\\' => 25,
             'PhpOffice\\Math\\' => 15,
+            'PHPMailer\\PHPMailer\\' => 20,
         ),
         'M' =>
         array (
@@ -126,6 +127,10 @@ class ComposerStaticInitd3713dfc40bef2f55d3e3c7edf024ec1
         'PhpOffice\\Math\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpoffice/math/src/Math',
+        ),
+        'PHPMailer\\PHPMailer\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/phpmailer/phpmailer/src',
         ),
         'Minishlink\\WebPush\\' =>
         array (
@@ -628,6 +633,13 @@ class ComposerStaticInitd3713dfc40bef2f55d3e3c7edf024ec1
         'Minishlink\\WebPush\\VAPID' => __DIR__ . '/..' . '/minishlink/web-push/src/VAPID.php',
         'Minishlink\\WebPush\\WebPush' => __DIR__ . '/..' . '/minishlink/web-push/src/WebPush.php',
         'Override' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/Override.php',
+        'PHPMailer\\PHPMailer\\DSNConfigurator' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/DSNConfigurator.php',
+        'PHPMailer\\PHPMailer\\Exception' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/Exception.php',
+        'PHPMailer\\PHPMailer\\OAuth' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/OAuth.php',
+        'PHPMailer\\PHPMailer\\OAuthTokenProvider' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/OAuthTokenProvider.php',
+        'PHPMailer\\PHPMailer\\PHPMailer' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/PHPMailer.php',
+        'PHPMailer\\PHPMailer\\POP3' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/POP3.php',
+        'PHPMailer\\PHPMailer\\SMTP' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/SMTP.php',
         'PhpOffice\\Math\\Element\\AbstractElement' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/AbstractElement.php',
         'PhpOffice\\Math\\Element\\AbstractGroupElement' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/AbstractGroupElement.php',
         'PhpOffice\\Math\\Element\\Fraction' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/Fraction.php',

@@ -38,6 +38,7 @@ export default function MasterUsersPage() {
   const [formError, setFormError]     = useState('');
   const [toast, setToast]             = useState('');
   const [testingPush, setTestingPush] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
   const [checkingDeadlines, setCheckingDeadlines] = useState(false);
   const [visiblePasswords, setVisiblePasswords] = useState({});
 
@@ -252,6 +253,23 @@ export default function MasterUsersPage() {
       showToast(err.message || 'Gagal mengirim notifikasi uji coba.');
     } finally {
       setTestingPush(false);
+    }
+  }
+
+  // Test Email Notification
+  async function handleTestEmail() {
+    setTestingEmail(true);
+    try {
+      const res = await api.post('/notifications/test-email', {});
+      if (res.success) {
+        showToast(res.message || 'Email uji coba berhasil dikirim!');
+      } else {
+        showToast(res.message || 'Gagal mengirim email uji coba.');
+      }
+    } catch (err) {
+      showToast(err.message || 'Gagal mengirim email.');
+    } finally {
+      setTestingEmail(false);
     }
   }
 
@@ -470,7 +488,20 @@ export default function MasterUsersPage() {
             <svg className="w-3.5 h-3.5 text-accent-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
             </svg>
-            {testingPush ? 'Mengirim...' : 'Uji Notifikasi Browser'}
+            {testingPush ? 'Mengirim...' : 'Uji Push Browser'}
+          </button>
+
+          {/* Uji Kirim Email */}
+          <button
+            onClick={handleTestEmail}
+            disabled={testingEmail}
+            className="btn-secondary text-xs flex items-center gap-1.5"
+            title="Kirim email uji coba ke alamat email akun Anda"
+          >
+            <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+            </svg>
+            {testingEmail ? 'Mengirim...' : 'Uji Kirim Email'}
           </button>
 
           {/* Cek Deadline Tugas */}

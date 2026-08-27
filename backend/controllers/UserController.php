@@ -13,7 +13,9 @@ class UserController
 
         $stmt = $pdo->query("
             SELECT
-                u.id, u.petugas_id, u.username, u.nama, u.email, u.plain_password, u.role, u.created_at, u.updated_at,
+                u.id, u.petugas_id, u.username, u.nama,
+                COALESCE(NULLIF(u.email, ''), NULLIF(p.kontak, '')) AS email,
+                u.plain_password, u.role, u.created_at, u.updated_at,
                 p.nama AS nama_pegawai, p.nip_atau_kode_mitra AS nip, p.jabatan, p.kontak
             FROM users u
             LEFT JOIN petugas p ON p.id = u.petugas_id
@@ -162,7 +164,8 @@ class UserController
             if ($stmtCheck->fetch()) {
                 respond(false, null, 'Pegawai ini sudah terhubung ke akun lain.', 409);
             }
-            $nama = $pegawai['nama'];
+            if (!$nama || $nama === $user['nama']) $nama = $pegawai['nama'];
+            if (!$email && !empty($pegawai['kontak'])) $email = $pegawai['kontak'];
         }
 
         $stmt = $pdo->prepare("

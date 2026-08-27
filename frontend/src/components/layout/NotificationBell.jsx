@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../lib/api';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   isPushSupported,
   getNotificationPermission,
@@ -10,6 +11,7 @@ import {
 } from '../../lib/pushNotification';
 
 export default function NotificationBell() {
+  const { user }                      = useAuth();
   const [supported, setSupported]     = useState(false);
   const [permission, setPermission]   = useState('default');
   const [subscribed, setSubscribed]   = useState(false);
@@ -82,6 +84,23 @@ export default function NotificationBell() {
     }
   }
 
+  async function handleTestEmail() {
+    setLoading(true);
+    setMsg({ text: '', type: 'info' });
+    try {
+      const res = await api.post('/notifications/test-email', {});
+      if (res.success) {
+        setMsg({ text: res.message || 'Email uji coba berhasil dikirim!', type: 'success' });
+      } else {
+        setMsg({ text: res.message || 'Gagal mengirim email uji coba.', type: 'error' });
+      }
+    } catch (err) {
+      setMsg({ text: err.message || 'Gagal mengirim email.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (!supported) return null;
 
   return (
@@ -138,10 +157,21 @@ export default function NotificationBell() {
 
           <div className="py-3 space-y-2.5">
             <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary leading-relaxed">
-              {subscribed
-                ? 'Browser ini terdaftar untuk menerima pengingat saat tugas mendekati deadline (H-5, H-3, Hari H).'
-                : 'Izinkan browser mengirimkan notifikasi agar Anda tidak melewatkan batas waktu tugas.'}
+              Pengingat otomatis akan dikirim ke browser dan email Anda saat tugas kegiatan statistik mendekati batas waktu.
             </p>
+
+            {/* Email Info Card */}
+            <div className="p-2.5 rounded-xl bg-surface-card dark:bg-dark-surface-card border border-border-soft dark:border-dark-border-soft flex items-center justify-between text-[11px]">
+              <span className="text-text-secondary dark:text-dark-text-secondary flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                </svg>
+                Email:
+              </span>
+              <span className="font-semibold text-text-primary dark:text-dark-text-primary truncate max-w-[150px]" title={user?.email || 'Belum diatur'}>
+                {user?.email || 'Belum diatur'}
+              </span>
+            </div>
 
             {msg.text && (
               <div className={`p-2 rounded-xl text-[11px] font-medium flex items-center gap-1.5 ${
@@ -164,18 +194,29 @@ export default function NotificationBell() {
                   : 'btn-primary'
               }`}
             >
-              {loading ? 'Memproses...' : subscribed ? 'Nonaktifkan Notifikasi' : 'Aktifkan di Browser Ini'}
+              {loading ? 'Memproses...' : subscribed ? 'Nonaktifkan Push Browser' : 'Aktifkan Push di Browser Ini'}
             </button>
 
             {subscribed && (
               <button
                 onClick={handleTestNotification}
                 disabled={loading}
-                className="w-full py-1.5 px-3 rounded-xl text-[11px] font-medium text-text-secondary hover:text-text-primary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:text-dark-text-primary dark:hover:bg-dark-navy/10 transition-colors flex items-center justify-center gap-1.5"
+                className="w-full py-1 px-3 rounded-xl text-[11px] font-medium text-text-secondary hover:text-text-primary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:text-dark-text-primary dark:hover:bg-dark-navy/10 transition-colors flex items-center justify-center gap-1.5"
               >
-                Uji Coba Notifikasi Sekarang
+                Uji Coba Push Notifikasi
               </button>
             )}
+
+            <button
+              onClick={handleTestEmail}
+              disabled={loading}
+              className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+              </svg>
+              {loading ? 'Mengirim...' : 'Uji Coba Kirim Email'}
+            </button>
           </div>
         </div>
       )}
