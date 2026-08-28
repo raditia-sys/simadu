@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import DataTable from '../../components/ui/DataTable';
 import Modal, { FormField, Input, Select, Textarea } from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../lib/api';
 
 const KATEGORI_OPTIONS = ['Distribusi', 'Harga', 'KTIP', 'Sensus'];
@@ -32,9 +33,7 @@ export default function MasterSurveiPage() {
   const [confirm, setConfirm]     = useState({ open: false, row: null });
   const [form, setForm]           = useState(EMPTY_FORM);
   const [formError, setFormError] = useState('');
-  const [toast, setToast]         = useState('');
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const { showToast } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -175,7 +174,6 @@ export default function MasterSurveiPage() {
           searchKeys={['nama_survei', 'kategori', 'kode_survei']} searchPlaceholder="Cari nama, kode, atau kategori survei..."
           emptyMessage="Belum ada data survei." />
       </div>
-      {toast && <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg">{toast}</div>}
       <Modal isOpen={modal.open} onClose={() => setModal({ ...modal, open: false })}
         title={modal.mode === 'add' ? 'Tambah Survei' : 'Edit Survei'} size="lg"
         footer={<div className="flex justify-end gap-2">

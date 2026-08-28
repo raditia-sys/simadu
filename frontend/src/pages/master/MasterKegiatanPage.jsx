@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import DataTable from '../../components/ui/DataTable';
 import Modal, { FormField, Input } from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../lib/api';
 
 const EMPTY_FORM = { nama: '' };
@@ -16,9 +17,7 @@ export default function MasterKegiatanPage() {
   const [confirm, setConfirm]     = useState({ open: false, row: null });
   const [form, setForm]           = useState(EMPTY_FORM);
   const [formError, setFormError] = useState('');
-  const [toast, setToast]         = useState('');
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const { showToast } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,12 +100,6 @@ export default function MasterKegiatanPage() {
           emptyMessage="Belum ada data peran."
         />
       </div>
-
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg">
-          {toast}
-        </div>
-      )}
 
       <Modal
         isOpen={modal.open}

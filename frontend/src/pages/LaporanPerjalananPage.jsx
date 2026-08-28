@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api, API_BASE, apiUpload } from '../lib/api';
+import { useToast } from '../contexts/ToastContext';
 import WizardStepBar from '../components/perjalanan/WizardStepBar';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Pagination from '../components/ui/Pagination';
@@ -641,15 +642,12 @@ export default function LaporanPerjalananPage() {
   const [kegiatanList, setKegiatanList] = useState([]);
   const [confirmId, setConfirmId] = useState(null);
   const [deleting,  setDeleting]  = useState(false);
-  const [toast,    setToast]    = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
-
   const [fPetugas, setFPetugas] = useState('');
   const [fStatus,  setFStatus]  = useState('');
   const [page,     setPage]     = useState(1);
   const [perPage,  setPerPage]  = useState(10);
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
+  const { showToast } = useToast();
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -971,11 +969,6 @@ export default function LaporanPerjalananPage() {
           />
         )}
       </div>
-
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg">{toast}</div>
-      )}
 
       <ConfirmDialog
         isOpen={!!confirmId}

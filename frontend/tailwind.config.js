@@ -18,6 +18,11 @@ module.exports = {
         'accent-orange':  '#E8935A',
         // Gray neutral: status "Belum Mulai"
         'status-neutral': '#C3CBD3',
+        // Status colors
+        'status-active':  '#10B981', // emerald green
+        'status-error':   '#EF4444', // red
+        'status-warning': '#F59E0B', // amber
+        'status-info':    '#3B82F6', // blue
         // Page background (warm white, not stark white)
         'bg-page':        '#FAF9F7',
         // Card / surface
@@ -34,6 +39,10 @@ module.exports = {
         'dark-navy':           '#6E8CAC', // lighter navy, readable on dark bg
         'dark-accent-orange':  '#E8A272', // muted orange, not neon
         'dark-status-neutral': '#4E5D6C',
+        'dark-status-active':  '#059669',
+        'dark-status-error':   '#DC2626',
+        'dark-status-warning': '#D97706',
+        'dark-status-info':    '#2563EB',
         'dark-text-primary':   '#D8DEE6',
         'dark-text-secondary': '#93A2B0',
         'dark-border-soft':    '#33455A',

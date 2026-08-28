@@ -4,6 +4,7 @@ import Modal, { FormField, Input, Select } from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { api } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { isPushSupported, subscribeToPush, testPushNotification } from '../../lib/pushNotification';
 
 const EMPTY_FORM = {
@@ -18,6 +19,7 @@ const EMPTY_FORM = {
 
 export default function MasterUsersPage() {
   const { user: currentUser } = useAuth();
+  const { showToast } = useToast();
 
   const [data, setData]                       = useState([]);
   const [availablePegawai, setAvailablePegawai] = useState([]);
@@ -36,16 +38,10 @@ export default function MasterUsersPage() {
   const [showPass, setShowPass]       = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [formError, setFormError]     = useState('');
-  const [toast, setToast]             = useState('');
   const [testingPush, setTestingPush] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [checkingDeadlines, setCheckingDeadlines] = useState(false);
   const [visiblePasswords, setVisiblePasswords] = useState({});
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3500);
-  };
 
   const toggleShowPassword = (id) => {
     setVisiblePasswords(prev => ({ ...prev, [id]: !prev[id] }));
@@ -489,13 +485,6 @@ export default function MasterUsersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg animate-in slide-in-from-bottom-2 duration-200">
-          {toast}
-        </div>
-      )}
-
       {/* Header & Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

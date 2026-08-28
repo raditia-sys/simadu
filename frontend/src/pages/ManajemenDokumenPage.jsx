@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { api, API_BASE, apiUpload } from '../lib/api';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Modal, { FormField, Input, Select } from '../components/ui/Modal';
@@ -155,19 +156,17 @@ export default function ManajemenDokumenPage() {
   const [filterKat,    setFilterKat]    = useState('');
   const [uploading,    setUploading]    = useState(false);
   const [savingLink,   setSavingLink]   = useState(false);
-  const [toast,        setToast]        = useState('');
   const [editDoc,      setEditDoc]      = useState(null);
   const [confirmId,    setConfirmId]    = useState(null);
   const [deleting,     setDeleting]     = useState(false);
   const [page,         setPage]         = useState(1);
   const [perPage,      setPerPage]      = useState(10);
+  const { showToast } = useToast();
 
   // Form mode: 'file' | 'link'
   const [addMode,      setAddMode]      = useState('file');
   const [uploadForm,   setUploadForm]   = useState({ kategori: 'Umum', nama_file: '', survei_id: '' });
   const [linkForm,     setLinkForm]     = useState({ nama_file: '', url: '', kategori: 'Tautan Entri', survei_id: '' });
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
 
   const load = async () => {
     setLoading(true);
@@ -506,11 +505,6 @@ export default function ManajemenDokumenPage() {
           />
         )}
       </div>
-
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg">{toast}</div>
-      )}
 
       {/* Edit modal */}
       {editDoc && (

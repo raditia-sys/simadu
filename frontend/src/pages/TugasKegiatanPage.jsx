@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { api, API_BASE, apiUpload } from '../lib/api';
 import RadialProgress from '../components/ui/RadialProgress';
 import ColumnSelector from '../components/ui/ColumnSelector';
@@ -203,14 +204,12 @@ export default function TugasKegiatanPage() {
   const [importing,    setImporting]    = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [deleting,     setDeleting]     = useState(false);
-  const [toast,      setToast]        = useState('');
+  const { showToast } = useToast();
 
   // ── Kolom visibility ───────────────────────────────────────────────────────
   const { visible, toggle, reset: resetCols } = useColumnVisibility('tugas_v2', ALL_COLUMNS);
 
   const fileInputRef = useRef(null);
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
 
   // ── Load dropdown options ───────────────────────────────────────────────────
   useEffect(() => {
@@ -736,13 +735,6 @@ export default function TugasKegiatanPage() {
           </div>
         )}
       </div>
-
-      {/* ── Toast ───────────────────────────────────────────────────────────── */}
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg">
-          {toast}
-        </div>
-      )}
 
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
       {tugasModal.open && (

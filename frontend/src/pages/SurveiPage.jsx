@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, API_BASE } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import RadialProgress from '../components/ui/RadialProgress';
 import ProgressRingGrid from '../components/survei/ProgressRingGrid';
 import KecamatanTugasModal from '../components/survei/KecamatanTugasModal';
@@ -100,8 +101,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   // ── Modal & Toast ─────────────────────────────────────────────────────────
   const [tugasModal,     setTugasModal]     = useState({ open: false, mode: 'edit-selesai', row: null });
   const [kecamatanModal, setKecamatanModal] = useState({ open: false, kecamatan: null, info: null });
-  const [toast, setToast] = useState('');
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
+  const { showToast } = useToast();
 
   // ── Dokumen ───────────────────────────────────────────────────────────────
   const [dokumen, setDokumen] = useState([]);
@@ -721,13 +721,6 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
             </div>
           )}
         </>
-      )}
-
-      {/* ── Toast ───────────────────────────────────────────────────────────── */}
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl bg-status-active text-white text-sm shadow-soft-lg">
-          {toast}
-        </div>
       )}
 
       {/* ── Modal Update Progres / Edit Tugas ────────────────────────────────── */}
