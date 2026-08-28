@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import NotificationBell from './NotificationBell';
 import ChangeMyPasswordModal from './ChangeMyPasswordModal';
 
@@ -40,6 +41,7 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
   const location = useLocation();
   const navigate  = useNavigate();
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
 
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [changePassOpen, setChangePassOpen]     = useState(false);
@@ -70,6 +72,14 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
     await logout();
     navigate('/login', { replace: true });
   }
+
+  const copyToClipboard = (text, label = 'Data') => {
+    if (!text) return;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      showToast(`${label} disalin ke clipboard!`, 'info', 'DISALIN');
+    }
+  };
 
   return (
     <header className="topbar-h flex items-center justify-between px-4 gap-4 border-b border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface flex-shrink-0 relative z-30">
@@ -161,37 +171,63 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
 
           {/* User Popover Menu */}
           {userDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-surface dark:bg-dark-surface border border-border-soft dark:border-dark-border-soft shadow-soft-xl p-3 z-50 animate-in fade-in-0 zoom-in-95 duration-150 space-y-3">
+            <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-surface dark:bg-dark-surface border border-border-soft dark:border-dark-border-soft shadow-2xl p-3 z-50 animate-in fade-in-0 zoom-in-95 duration-150 space-y-2.5">
               {/* Profile Card Header */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-border-soft dark:border-dark-border-soft space-y-1">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-border-soft dark:border-dark-border-soft space-y-1.5">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-text-primary dark:text-dark-text-primary truncate">
                     {user?.nama || '—'}
                   </p>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-navy/10 text-navy dark:bg-dark-navy/20 dark:text-dark-navy capitalize">
-                    {user?.role || 'admin'}
+                    {user?.role === 'superadmin' ? 'Super Admin' : 'Admin'}
                   </span>
                 </div>
-                <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary">
-                  Username: <span className="font-mono">{user?.username}</span>
-                </p>
-                <div className="flex items-center gap-1 text-[11px] text-text-secondary dark:text-dark-text-secondary pt-0.5 truncate" title={user?.email || 'Email belum diatur'}>
-                  <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                  </svg>
-                  <span className="truncate">{user?.email || 'Email belum diatur'}</span>
+
+                <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-dark-text-secondary">
+                  <span>Username: <strong className="font-mono text-text-primary dark:text-dark-text-primary">{user?.username}</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(user?.username, 'Username')}
+                    className="p-0.5 hover:text-navy dark:hover:text-dark-navy text-text-secondary/70 transition-colors"
+                    title="Salin username"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-dark-text-secondary pt-0.5">
+                  <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                    <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                    </svg>
+                    <span className="truncate" title={user?.email || 'Email belum diatur'}>{user?.email || 'Email belum diatur'}</span>
+                  </div>
+                  {user?.email && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(user?.email, 'Email')}
+                      className="p-0.5 hover:text-navy dark:hover:text-dark-navy text-text-secondary/70 transition-colors flex-shrink-0"
+                      title="Salin email"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Menu Actions */}
-              <div className="space-y-1 pt-1">
+              <div className="space-y-1 pt-0.5">
                 {user?.role === 'superadmin' && (
                   <Link
                     to="/master/users"
                     onClick={() => setUserDropdownOpen(false)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:text-dark-text-primary dark:hover:bg-dark-navy/10 rounded-xl transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:text-dark-text-primary dark:hover:bg-dark-navy/10 rounded-xl transition-colors"
                   >
-                    <svg className="w-4 h-4 text-navy dark:text-dark-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <svg className="w-4 h-4 text-navy dark:text-dark-navy flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                     </svg>
                     <span>Master Akun Admin</span>
@@ -204,9 +240,9 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
                     setUserDropdownOpen(false);
                     setChangePassOpen(true);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:text-dark-text-primary dark:hover:bg-dark-navy/10 rounded-xl transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-navy/5 dark:text-dark-text-secondary dark:hover:text-dark-text-primary dark:hover:bg-dark-navy/10 rounded-xl transition-colors text-left"
                 >
-                  <svg className="w-4 h-4 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <svg className="w-4 h-4 text-text-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                   </svg>
                   <span>Ganti Password Saya</span>
@@ -215,9 +251,9 @@ export default function Topbar({ isDark, onToggleDark, onToggleSidebar, sidebarC
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-accent-orange hover:bg-accent-orange/10 dark:text-dark-accent-orange dark:hover:bg-dark-accent-orange/15 rounded-xl transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-accent-orange hover:bg-accent-orange/10 dark:text-dark-accent-orange dark:hover:bg-dark-accent-orange/15 rounded-xl transition-colors text-left"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <svg className="w-4 h-4 text-accent-orange flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                   </svg>
                   <span>Keluar (Logout)</span>
