@@ -130,6 +130,8 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     setSurvei(null);
     setProgressData({ by_kecamatan: [], by_desa: [] });
     setPetugasData([]);
+    setBulan('');   // reset filter bulan saat ganti survei
+    setTw('');      // reset filter triwulan saat ganti survei
     loadSurveiInfo();
     api.get('/dashboard/years').then((res) => {
       if (res.success) setYears(res.data);

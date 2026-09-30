@@ -194,7 +194,9 @@ class SurveiStatistikController
         $where  = ['t.survei_id = ?'];
         $params = [$survei_id];
 
-        if ($tahun = query('tahun'))  { $where[] = 't.tahun = ?'; $params[] = (int)$tahun; }
+        if ($tahun = query('tahun'))      { $where[] = 't.tahun = ?';        $params[] = (int)$tahun; }
+        if ($bulan = query('bulan'))      { $where[] = 't.bulan = ?';        $params[] = (int)$bulan; }
+        if ($tw    = query('triwulan_ke')){ $where[] = 't.triwulan_ke = ?';  $params[] = (int)$tw;    }
         if ($kec   = query('kecamatan')) {
             if ($kec === '__none__' || $kec === 'Lintas Wilayah' || $kec === 'Non-Wilayah') {
                 $where[] = 't.wilayah_id IS NULL';
