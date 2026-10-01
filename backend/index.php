@@ -1,9 +1,9 @@
-<?php
+﻿<?php
 /**
- * SIMADU Backend — Entry Point & Router
+ * SIMADU Backend â€” Entry Point & Router
  *
  * Semua request masuk ke sini via .htaccess rewrite.
- * Flow: session → CORS → content-type → autoload → route → dispatch
+ * Flow: session â†’ CORS â†’ content-type â†’ autoload â†’ route â†’ dispatch
  */
 declare(strict_types=1);
 
@@ -12,12 +12,12 @@ define('ROOT_DIR', __DIR__);
 $appConfig = file_exists(ROOT_DIR . '/config/config.php') ? require ROOT_DIR . '/config/config.php' : [];
 define('APP_ENV', $appConfig['app']['env'] ?? 'development');
 
-// ─── Error reporting ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Error reporting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
-// ─── Session ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Session â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') == 443;
 session_start([
     'cookie_httponly' => true,
@@ -26,7 +26,7 @@ session_start([
     'use_strict_mode' => true,
 ]);
 
-// ─── CORS ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ CORS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if ($origin !== '') {
     header("Access-Control-Allow-Origin: $origin");
@@ -39,10 +39,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     exit;
 }
 
-// ─── Content-Type ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Content-Type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 header('Content-Type: application/json; charset=utf-8');
 
-// ─── Autoload: helpers, config, middleware, controllers ───────────────────────
+// â”€â”€â”€ Autoload: helpers, config, middleware, controllers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 require ROOT_DIR . '/helpers.php';
 require ROOT_DIR . '/config/database.php';
 require ROOT_DIR . '/middleware/auth.php';
@@ -61,10 +61,10 @@ require ROOT_DIR . '/controllers/LogAktivitasController.php';
 require ROOT_DIR . '/controllers/LaporanPerjalananController.php';
 require ROOT_DIR . '/controllers/UserController.php';
 require ROOT_DIR . '/controllers/NotificationController.php';
-// Composer autoload (PhpSpreadsheet dll.) — di-load lazy di dalam controller bila dibutuhkan
+// Composer autoload (PhpSpreadsheet dll.) â€” di-load lazy di dalam controller bila dibutuhkan
 // require ROOT_DIR . '/vendor/autoload.php'; // jangan di-load global agar request biasa tetap ringan
 
-// ─── Request info ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Request info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $uri    = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
@@ -78,7 +78,7 @@ if (str_starts_with($uri, '/backend')) {
 }
 $uri = '/' . trim($uri, '/');
 
-// ─── Route Table ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Route Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Format: 'VERB /pattern' => [ControllerClass, method]
 // {id} dalam pattern akan di-capture dan dikirim ke method sebagai int
 $routes = [
@@ -92,7 +92,7 @@ $routes = [
     'GET /api/me'            => [AuthController::class,  'me'],
     'PUT /api/auth/profile'  => [AuthController::class,  'updateProfile'],
 
-    // ── Dashboard ────────────────────────────────────────────────────────────
+    // â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     'GET /api/dashboard/init'             => [DashboardController::class, 'init'],
     'GET /api/dashboard/summary'          => [DashboardController::class, 'summary'],
     'GET /api/dashboard/progress-wilayah' => [DashboardController::class, 'progressWilayah'],
@@ -101,7 +101,7 @@ $routes = [
     'GET /api/dashboard/progress-trend'   => [DashboardController::class, 'progressTrend'],
     'GET /api/dashboard/years'            => [DashboardController::class, 'availableYears'],
 
-    // ── Survei Statistik (template halaman per survei) ──────────────────────
+    // â”€â”€ Survei Statistik (template halaman per survei) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     'GET /api/survei-statistik/info'     => [SurveiStatistikController::class, 'info'],
     'GET /api/survei-statistik/progress' => [SurveiStatistikController::class, 'progress'],
     'GET /api/survei-statistik/petugas'  => [SurveiStatistikController::class, 'petugas'],
@@ -131,7 +131,7 @@ $routes = [
     'PUT /api/master/kegiatan/{id}'    => [MasterKegiatanController::class, 'update'],
     'DELETE /api/master/kegiatan/{id}' => [MasterKegiatanController::class, 'destroy'],
 
-    // ── Tugas Kegiatan ───────────────────────────────────────────────────────
+    // â”€â”€ Tugas Kegiatan â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Urutan penting: route statis (bulk/import/export) HARUS sebelum {id}
     'GET /api/tugas/template-excel'    => [TugasKegiatanController::class, 'downloadTemplate'],
     'GET /api/tugas/export-excel'      => [TugasKegiatanController::class, 'exportExcel'],
@@ -146,7 +146,7 @@ $routes = [
     'PUT /api/tugas/{id}'      => [TugasKegiatanController::class, 'update'],
     'DELETE /api/tugas/{id}'   => [TugasKegiatanController::class, 'destroy'],
 
-    // ── Dokumen ──────────────────────────────────────────────────────────────
+    // â”€â”€ Dokumen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     'GET /api/dokumen/kategori'      => [DokumenController::class, 'kategoriList'],
     'GET /api/dokumen/download/{id}' => [DokumenController::class, 'download'],
     'GET /api/dokumen'               => [DokumenController::class, 'index'],
@@ -155,23 +155,24 @@ $routes = [
     'PUT /api/dokumen/{id}'          => [DokumenController::class, 'update'],
     'DELETE /api/dokumen/{id}'       => [DokumenController::class, 'delete'],
 
-    // ── Kalender & Agenda ─────────────────────────────────────────────────────
+    // â”€â”€ Kalender & Agenda â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     'GET /api/kalender'         => [KalenderController::class, 'index'],
     'POST /api/kalender'        => [KalenderController::class, 'store'],
     'PUT /api/kalender/{id}'    => [KalenderController::class, 'update'],
     'DELETE /api/kalender/{id}' => [KalenderController::class, 'delete'],
 
-    // ── Tim & Organisasi ──────────────────────────────────────────────────────
+    // â”€â”€ Tim & Organisasi â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     'GET /api/tim' => [TimController::class, 'index'],
 
-    // ── Log Aktivitas (superadmin) ────────────────────────────────────────────
+    // â”€â”€ Log Aktivitas (superadmin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     'GET /api/log' => [LogAktivitasController::class, 'index'],
 
-    // ── Laporan Perjalanan Dinas — Wizard ─────────────────────────────────────
+    // â”€â”€ Laporan Perjalanan Dinas â€” Wizard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Static routes HARUS sebelum dynamic {id}
     'GET /api/perjalanan'                        => [LaporanPerjalananController::class, 'index'],
     'POST /api/perjalanan'                       => [LaporanPerjalananController::class, 'store'],
     'POST /api/perjalanan/batch'                 => [LaporanPerjalananController::class, 'batchStore'],
+    'GET /api/perjalanan/check-merge'            => [LaporanPerjalananController::class, 'checkMerge'],
     'GET /api/perjalanan/{id}/detail'            => [LaporanPerjalananController::class, 'detail'],
     'POST /api/perjalanan/{id}/duplicate'        => [LaporanPerjalananController::class, 'duplicate'],
     'PUT /api/perjalanan/{id}'                   => [LaporanPerjalananController::class, 'update'],
@@ -182,7 +183,7 @@ $routes = [
     'POST /api/perjalanan/{id}/selesai'          => [LaporanPerjalananController::class, 'selesai'],
     'GET /api/perjalanan/{id}/download'          => [LaporanPerjalananController::class, 'download'],
 
-    // ── Master Akun Admin (superadmin) ───────────────────────────────────────
+    // â”€â”€ Master Akun Admin (superadmin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     'GET /api/users/available-pegawai' => [UserController::class, 'availablePegawai'],
     'GET /api/users'                   => [UserController::class, 'index'],
     'POST /api/users'                  => [UserController::class, 'store'],
@@ -190,7 +191,7 @@ $routes = [
     'PUT /api/users/{id}'              => [UserController::class, 'update'],
     'DELETE /api/users/{id}'           => [UserController::class, 'destroy'],
 
-    // ── Web Push & Email Notification ────────────────────────────────────────
+    // â”€â”€ Web Push & Email Notification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     'GET /api/notifications/vapid-key'       => [NotificationController::class, 'getVapidPublicKey'],
     'POST /api/notifications/subscribe'      => [NotificationController::class, 'subscribe'],
     'POST /api/notifications/unsubscribe'    => [NotificationController::class, 'unsubscribe'],
@@ -201,7 +202,7 @@ $routes = [
 ];
 
 
-// ─── Dispatcher ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Dispatcher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function dispatch(string $method, string $uri, array $routes): void
 {
     foreach ($routes as $routeKey => $handler) {
@@ -211,7 +212,7 @@ function dispatch(string $method, string $uri, array $routes): void
             continue;
         }
 
-        // Konversi {id} → regex capture group
+        // Konversi {id} â†’ regex capture group
         $regex = '@^' . preg_replace('/\{(\w+)\}/', '(?P<$1>[^/]+)', $routePattern) . '$@';
 
         if (!preg_match($regex, $uri, $matches)) {
@@ -230,14 +231,14 @@ function dispatch(string $method, string $uri, array $routes): void
             $class::$methodName(...array_values($params));
         }
 
-        return; // route matched — stop
+        return; // route matched â€” stop
     }
 
     // Tidak ada route yang cocok
     respond(false, null, 'Endpoint tidak ditemukan.', 404);
 }
 
-// ─── Error handler global ─────────────────────────────────────────────────────
+// â”€â”€â”€ Error handler global â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 set_exception_handler(function (Throwable $e) {
     error_log((string)$e);
     $isDev = defined('APP_ENV') && APP_ENV === 'development';
@@ -246,3 +247,4 @@ set_exception_handler(function (Throwable $e) {
 });
 
 dispatch($method, $uri, $routes);
+

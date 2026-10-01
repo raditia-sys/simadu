@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, API_BASE } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,24 +26,24 @@ const PERIODE_LABEL = {
 const BULAN_OPTS = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
 const KATEGORI_META = {
-  'Tautan Entri': { icon: '🔗', label: 'Tautan Entri' },
-  'Kuesioner':    { icon: '📋', label: 'Kuesioner' },
-  'Materi':       { icon: '📖', label: 'Materi' },
-  'Metodologi':   { icon: '🔬', label: 'Metodologi' },
-  'Pelatihan':    { icon: '🎓', label: 'Pelatihan' },
-  'SK/Surat':     { icon: '📜', label: 'SK/Surat' },
-  'Laporan':      { icon: '📊', label: 'Laporan' },
-  'Umum':         { icon: '📁', label: 'Umum' },
+  'Tautan Entri': { icon: 'ðŸ”—', label: 'Tautan Entri' },
+  'Kuesioner':    { icon: 'ðŸ“‹', label: 'Kuesioner' },
+  'Materi':       { icon: 'ðŸ“–', label: 'Materi' },
+  'Metodologi':   { icon: 'ðŸ”¬', label: 'Metodologi' },
+  'Pelatihan':    { icon: 'ðŸŽ“', label: 'Pelatihan' },
+  'SK/Surat':     { icon: 'ðŸ“œ', label: 'SK/Surat' },
+  'Laporan':      { icon: 'ðŸ“Š', label: 'Laporan' },
+  'Umum':         { icon: 'ðŸ“', label: 'Umum' },
 };
 
 function getFileIcon(mime = '', path = '') {
-  if (mime.includes('pdf')) return '📄';
-  if (mime.includes('word') || mime.includes('document')) return '📝';
-  if (mime.includes('sheet') || mime.includes('excel')) return '📊';
-  if (mime.includes('presentation') || mime.includes('powerpoint')) return '📋';
-  if (mime.startsWith('image/')) return '🖼️';
-  if (mime.includes('zip') || mime.includes('rar') || mime.includes('7z')) return '🗜️';
-  return '📄';
+  if (mime.includes('pdf')) return 'ðŸ“„';
+  if (mime.includes('word') || mime.includes('document')) return 'ðŸ“';
+  if (mime.includes('sheet') || mime.includes('excel')) return 'ðŸ“Š';
+  if (mime.includes('presentation') || mime.includes('powerpoint')) return 'ðŸ“‹';
+  if (mime.startsWith('image/')) return 'ðŸ–¼ï¸';
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('7z')) return 'ðŸ—œï¸';
+  return 'ðŸ“„';
 }
 
 function getValidUrl(url = '') {
@@ -63,7 +63,7 @@ function formatDocSize(bytes) {
 }
 
 /**
- * SurveiPage — Template dinamis untuk semua halaman Kegiatan Statistik & Sensus Ekonomi.
+ * SurveiPage â€” Template dinamis untuk semua halaman Kegiatan Statistik & Sensus Ekonomi.
  *
  * Props:
  * - surveiNama: string  e.g. "SAPB", "SHP", "SE2026 Persiapan"
@@ -77,39 +77,39 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   const isSuperadmin = user?.role === 'superadmin';
   const canEdit = user?.role === 'superadmin' || user?.role === 'admin';
 
-  // ── Survei info ────────────────────────────────────────────────────────────
+  // â”€â”€ Survei info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [survei,       setSurvei]       = useState(null);
   const [surveiLoading,setSurveiLoading]= useState(true);
 
-  // ── Filter state ───────────────────────────────────────────────────────────
+  // â”€â”€ Filter state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [tahun, setTahun] = useState(String(today.getFullYear()));
   const [bulan, setBulan] = useState('');
   const [tw,    setTw]    = useState('');
   const [years, setYears] = useState([]);
 
-  // ── Progress data ──────────────────────────────────────────────────────────
+  // â”€â”€ Progress data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [progressData, setProgressData]   = useState({ by_kecamatan: [], by_desa: [] });
   const [progLoading,  setProgLoading]    = useState(false);
 
-  // ── Petugas tabel ─────────────────────────────────────────────────────────
+  // â”€â”€ Petugas tabel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [petugasData,    setPetugasData]    = useState([]);
   const [petugasLoading, setPetugasLoading] = useState(false);
   const [petugasPage,    setPetugasPage]    = useState(1);
   const [petugasPerPage, setPetugasPerPage] = useState(10);
   const [petugasSearch,  setPetugasSearch]  = useState('');
 
-  // ── Modal & Toast ─────────────────────────────────────────────────────────
+  // â”€â”€ Modal & Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [tugasModal,     setTugasModal]     = useState({ open: false, mode: 'edit-selesai', row: null });
   const [kecamatanModal, setKecamatanModal] = useState({ open: false, kecamatan: null, info: null });
   const { showToast } = useToast();
 
-  // ── Dokumen ───────────────────────────────────────────────────────────────
+  // â”€â”€ Dokumen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [dokumen, setDokumen] = useState([]);
 
-  // ── Tab aktif ─────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState('progress'); // 'progress' | 'petugas' | 'dokumen'
+  // â”€â”€ Tab aktif â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [tab, setTab] = useState(kategori === 'Sensus' ? 'dokumen' : 'progress'); // 'progress' | 'petugas' | 'dokumen'
 
-  // ── Load survei info ───────────────────────────────────────────────────────
+  // â”€â”€ Load survei info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadSurveiInfo = useCallback(() => {
     const params = new URLSearchParams();
     if (surveiNama) params.set('nama', surveiNama);
@@ -138,14 +138,14 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     });
   }, [loadSurveiInfo]);
 
-  // ── Build filter QS ───────────────────────────────────────────────────────
+  // â”€â”€ Build filter QS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const filterQs = useCallback((extra = {}) => {
     if (!survei) return '';
     const p = { survei_id: survei.id, tahun, ...(bulan ? { bulan } : {}), ...(tw ? { triwulan_ke: tw } : {}), ...extra };
     return '?' + new URLSearchParams(p).toString();
   }, [survei, tahun, bulan, tw]);
 
-  // ── Load progress ──────────────────────────────────────────────────────────
+  // â”€â”€ Load progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadProgress = useCallback(() => {
     if (!survei) return;
     setProgLoading(true);
@@ -155,7 +155,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     });
   }, [survei, filterQs]);
 
-  // ── Load petugas ───────────────────────────────────────────────────────────
+  // â”€â”€ Load petugas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadPetugas = useCallback(() => {
     if (!survei) return;
     setPetugasLoading(true);
@@ -170,7 +170,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     loadPetugas();
   }, [loadProgress, loadPetugas]);
 
-  // ── Load dokumen (lazy) ───────────────────────────────────────────────────
+  // â”€â”€ Load dokumen (lazy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (!survei || tab !== 'dokumen') return;
     api.get('/dokumen?survei_id=' + survei.id).then((res) => {
@@ -178,7 +178,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     });
   }, [survei, tab]);
 
-  // ── Kelompokkan dokumen per kategori ───────────────────────────────────────
+  // â”€â”€ Kelompokkan dokumen per kategori â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const groupedDokumen = useMemo(() => {
     const groups = {};
     const standardOrder = ['Tautan Entri', 'Kuesioner', 'Materi', 'Metodologi', 'Pelatihan', 'SK/Surat', 'Laporan', 'Umum'];
@@ -201,15 +201,15 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     return sortedKeys.map((k) => ({
       kategori: k,
       items: groups[k],
-      meta: KATEGORI_META[k] || { icon: '📁', label: k },
+      meta: KATEGORI_META[k] || { icon: 'ðŸ“', label: k },
     }));
   }, [dokumen]);
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="space-y-5">
 
-      {/* ── Info Card Survei ─────────────────────────────────────────────── */}
+      {/* â”€â”€ Info Card Survei â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="card p-5">
         {surveiLoading ? (
           <div className="space-y-2">
@@ -262,18 +262,18 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${KATEGORI_BADGE[survei.kategori] ?? ''}`}>
                     {survei.kategori}
                   </span>
-                  {/* Periode badge — tampilkan rentang bulan jika tahunan */}
+                  {/* Periode badge â€” tampilkan rentang bulan jika tahunan */}
                   <span className="text-xs px-2 py-0.5 rounded-full bg-status-neutral/10 text-status-neutral dark:bg-dark-status-neutral/15 dark:text-dark-status-neutral">
                     {survei.jenis_periode === 'tahunan' && survei.bulan_mulai && survei.bulan_selesai
-                      ? `Tahunan (${BULAN_OPTS[survei.bulan_mulai]}–${BULAN_OPTS[survei.bulan_selesai]})`
+                      ? `Tahunan (${BULAN_OPTS[survei.bulan_mulai]}â€“${BULAN_OPTS[survei.bulan_selesai]})`
                       : (PERIODE_LABEL[survei.jenis_periode] ?? survei.jenis_periode)
                     }
                   </span>
                 </div>
                 <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-0.5">
                   {survei._summary?.total_tugas ?? 0} tugas terdaftar
-                  {survei._summary?.tahun_min && ` · ${survei._summary.tahun_min}–${survei._summary.tahun_max}`}
-                  {' '}·{' '}
+                  {survei._summary?.tahun_min && ` Â· ${survei._summary.tahun_min}â€“${survei._summary.tahun_max}`}
+                  {' '}Â·{' '}
                   <span className="font-mono">
                     {survei._summary?.total_selesai ?? 0}/{survei._summary?.total_target ?? 0}
                   </span>{' '}sampel
@@ -281,21 +281,21 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                 {/* Rentang tanggal koleksi */}
                 {survei.jenis_periode === 'mingguan' && survei.tanggal_mulai_koleksi && survei.tanggal_selesai_koleksi ? (
                   <p className="text-xs text-text-secondary/70 dark:text-dark-text-secondary/70 mt-1">
-                    📅 Mg1: tgl {survei.tanggal_mulai_koleksi}–{survei.tanggal_selesai_koleksi}
+                    ðŸ“… Mg1: tgl {survei.tanggal_mulai_koleksi}â€“{survei.tanggal_selesai_koleksi}
                     {survei.tanggal_mulai_mg2 && survei.tanggal_selesai_mg2 && (
-                      <span> &nbsp;·&nbsp; Mg2: tgl {survei.tanggal_mulai_mg2}–{survei.tanggal_selesai_mg2}</span>
+                      <span> &nbsp;Â·&nbsp; Mg2: tgl {survei.tanggal_mulai_mg2}â€“{survei.tanggal_selesai_mg2}</span>
                     )}
                     {' '}setiap bulan
                   </p>
                 ) : survei.tanggal_mulai_koleksi && survei.tanggal_selesai_koleksi ? (
                   <p className="text-xs text-text-secondary/70 dark:text-dark-text-secondary/70 mt-1">
-                    📅 Pengumpulan data: tgl {survei.tanggal_mulai_koleksi}–{survei.tanggal_selesai_koleksi} setiap {PERIODE_LABEL[survei.jenis_periode]?.toLowerCase() ?? 'periode'}
+                    ðŸ“… Pengumpulan data: tgl {survei.tanggal_mulai_koleksi}â€“{survei.tanggal_selesai_koleksi} setiap {PERIODE_LABEL[survei.jenis_periode]?.toLowerCase() ?? 'periode'}
                   </p>
                 ) : null}
               </div>
             </div>
 
-            {/* Tautan entri data — buka di tab baru */}
+            {/* Tautan entri data â€” buka di tab baru */}
             {survei.tautan_entri_data && (
               <a
                 href={survei.tautan_entri_data}
@@ -316,7 +316,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
       {/* Hanya lanjut jika survei ditemukan */}
       {survei && (
         <>
-          {/* ── Filter bar ────────────────────────────────────────────────── */}
+          {/* â”€â”€ Filter bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-text-secondary dark:text-dark-text-secondary font-medium">Filter:</span>
             <select value={tahun} onChange={(e) => setTahun(e.target.value)}
@@ -355,7 +355,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
             )}
           </div>
 
-          {/* ── Tab Navigation ─────────────────────────────────────────────── */}
+          {/* â”€â”€ Tab Navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div className="flex items-center gap-0.5 border-b border-border-soft dark:border-dark-border-soft">
             {[
               { key: 'progress', label: 'Monitoring Progres' },
@@ -376,7 +376,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
             ))}
           </div>
 
-          {/* ── Tab: Monitoring Progres ─────────────────────────────────────── */}
+          {/* â”€â”€ Tab: Monitoring Progres â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {tab === 'progress' && (
             <ProgressRingGrid
               items={progressData.by_kecamatan}
@@ -389,7 +389,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
             />
           )}
 
-          {/* ── Tab: Data Petugas ───────────────────────────────────────────── */}
+          {/* â”€â”€ Tab: Data Petugas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {tab === 'petugas' && (() => {
             const sortedPetugas = [...(petugasData || [])].sort((a, b) => {
               if (a.tahun !== b.tahun) return (b.tahun || 0) - (a.tahun || 0);
@@ -433,7 +433,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                 <div className="flex items-center justify-between gap-3 flex-wrap border-b border-border-soft dark:border-dark-border-soft pb-3">
                   <div>
                     <h2 className="font-heading font-semibold text-sm text-text-primary dark:text-dark-text-primary">
-                      Data Petugas — {survei.nama_survei} ({tahun})
+                      Data Petugas â€” {survei.nama_survei} ({tahun})
                     </h2>
                     <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5">
                       Daftar alokasi beban tugas, wilayah, target, dan realisasi sampel petugas.
@@ -545,7 +545,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                                 </div>
                               </td>
                               <td className={`px-4 py-3 text-xs font-mono whitespace-nowrap ${isLate ? 'text-accent-orange dark:text-dark-accent-orange font-semibold' : 'text-text-secondary dark:text-dark-text-secondary'}`}>
-                                {isLate && '⚠ '}{row.deadline || '—'}
+                                {isLate && 'âš  '}{row.deadline || 'â€”'}
                               </td>
                               <td className="px-4 py-3 text-xs min-w-[120px] max-w-[200px]">
                                 {row.catatan ? (
@@ -553,7 +553,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                                     {row.catatan}
                                   </span>
                                 ) : (
-                                  <span className="text-text-secondary/50 dark:text-dark-text-secondary/50 italic">—</span>
+                                  <span className="text-text-secondary/50 dark:text-dark-text-secondary/50 italic">â€”</span>
                                 )}
                               </td>
                               {canEdit && (
@@ -595,7 +595,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
             );
           })()}
 
-          {/* ── Tab: Materi & Dokumen ───────────────────────────────────────── */}
+          {/* â”€â”€ Tab: Materi & Dokumen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {tab === 'dokumen' && (
             <div className="card p-5 space-y-6">
               {/* Tautan Entri Data Utama dari Master Survei (jika ada) */}
@@ -608,7 +608,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-lg group-hover:scale-105 transition-transform">🔗</span>
+                      <span className="text-lg group-hover:scale-105 transition-transform">ðŸ”—</span>
                       <p className="text-sm font-bold text-text-primary dark:text-dark-text-primary group-hover:text-navy dark:group-hover:text-dark-navy transition-colors">
                         Tautan Entri Data Utama ({survei.nama_survei})
                       </p>
@@ -621,7 +621,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
-                    Buka Tautan Utama ↗
+                    Buka Tautan Utama â†—
                   </span>
                 </a>
               )}
@@ -630,7 +630,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
               {survei.materi_dokumen && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-base">📖</span>
+                    <span className="text-base">ðŸ“–</span>
                     <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary">
                       Panduan & Materi Teknis Survei
                     </h3>
@@ -668,7 +668,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                         >
                           <div className="flex items-start gap-3 min-w-0 flex-1">
                             <div className="p-2 rounded-xl bg-navy/6 dark:bg-dark-navy/12 text-base flex-shrink-0 group-hover:scale-105 transition-transform">
-                              {isLink ? '🔗' : getFileIcon(doc.mime_type, doc.path)}
+                              {isLink ? 'ðŸ”—' : getFileIcon(doc.mime_type, doc.path)}
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-semibold text-text-primary dark:text-dark-text-primary group-hover:text-navy dark:group-hover:text-dark-navy transition-colors truncate" title={doc.nama_file}>
@@ -694,7 +694,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
                           {/* Tombol Visual Aksi */}
                           {isLink ? (
                             <span className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1 flex-shrink-0 pointer-events-none group-hover:shadow-sm">
-                              Buka Tautan ↗
+                              Buka Tautan â†—
                             </span>
                           ) : (
                             <span
@@ -716,7 +716,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
               {/* Status Kosong */}
               {dokumen.length === 0 && !survei.tautan_entri_data && !survei.materi_dokumen && (
                 <div className="py-12 text-center text-sm text-text-secondary dark:text-dark-text-secondary">
-                  <span className="text-3xl block mb-2">📁</span>
+                  <span className="text-3xl block mb-2">ðŸ“</span>
                   Belum ada materi, tautan entri, atau dokumen terlampir untuk survei ini.
                 </div>
               )}
@@ -725,7 +725,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
         </>
       )}
 
-      {/* ── Modal Update Progres / Edit Tugas ────────────────────────────────── */}
+      {/* â”€â”€ Modal Update Progres / Edit Tugas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {tugasModal.open && (
         <TugasForm
           mode={tugasModal.mode}
@@ -740,7 +740,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
         />
       )}
 
-      {/* ── Modal Pop-up Daftar Tugas per Kecamatan ────────────────────────── */}
+      {/* â”€â”€ Modal Pop-up Daftar Tugas per Kecamatan â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {kecamatanModal.open && (
         <KecamatanTugasModal
           kecamatan={kecamatanModal.kecamatan}
@@ -762,3 +762,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     </div>
   );
 }
+
+
+
+

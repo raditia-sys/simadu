@@ -5,9 +5,9 @@ import WizardStepBar from '../components/perjalanan/WizardStepBar';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Pagination from '../components/ui/Pagination';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function formatRupiah(n) {
-  if (!n && n !== 0) return '—';
+  if (!n && n !== 0) return 'Ã¢â‚¬â€';
   return 'Rp ' + Number(n).toLocaleString('id-ID');
 }
 const STATUS_BADGE = {
@@ -17,7 +17,7 @@ const STATUS_BADGE = {
 const inputCls = 'w-full text-sm px-3.5 py-2.5 rounded-xl border border-border-soft dark:border-dark-border-soft bg-bg-page dark:bg-dark-bg-page text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 dark:focus:ring-dark-navy/20 transition-all';
 const labelCls = 'block text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1';
 
-// ─── Step 1: Data Perjalanan Dinas ───────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Step 1: Data Perjalanan Dinas Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved, onBatchCreated }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState(() => laporan ? {
@@ -48,11 +48,57 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
     }
   }, [form.tujuan_wilayah_id]);
 
-  function handleAddToQueue() {
+
+
+  function handleRemoveQueue(idx) {
+    setQueue(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  const [mergeConfirm, setMergeConfirm] = useState(null);
+
+  async function handleCreateBatch() {
+    if (queue.length === 0) return;
+    setSaving(true); setError('');
+    const res = await api.post('/perjalanan/batch', { items: queue });
+    setSaving(false);
+    if (res.success) {
+      if (onBatchCreated) onBatchCreated(res.data);
+    } else {
+      setError(res.message);
+    }
+  }
+
+  async function checkAndSave(isBatchItem = false) {
     if (!form.petugas_id || !form.tujuan_wilayah_id || !form.survei_id || !form.tanggal_tugas || !form.maksud_perjalanan.trim()) {
-      setError('Lengkapi semua field bertanda * untuk menambahkan ke antrean'); return;
+      setError('Lengkapi semua field bertanda *'); return;
     }
     setError('');
+    
+    // Cek merge jika buat baru
+    if (!laporan) {
+      setSaving(true);
+      const checkRes = await api.get('/perjalanan/check-merge?petugas_id=' + form.petugas_id + '&tujuan_wilayah_id=' + form.tujuan_wilayah_id + '&survei_id=' + form.survei_id + '&tanggal_tugas=' + form.tanggal_tugas);
+      setSaving(false);
+      
+      if (checkRes.success && checkRes.data.length > 0) {
+        // Tampilkan konfirmasi
+        setMergeConfirm({ isBatchItem, groupData: checkRes.data });
+        return;
+      }
+    }
+    
+    proceedSave(isBatchItem, null);
+  }
+
+  async function proceedSave(isBatchItem, grup_id) {
+    if (isBatchItem) {
+      doAddToQueue(grup_id);
+    } else {
+      doSaveSingle(grup_id);
+    }
+  }
+
+  function doAddToQueue(grup_id) {
     const curPetugas = petugas.find(p => String(p.id) === form.petugas_id);
     const curWilayah = wilayah.find(w => String(w.id) === form.tujuan_wilayah_id);
     const curSurvei = surveys.find(s => String(s.id) === form.survei_id);
@@ -72,10 +118,10 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
       nama_survei: curSurvei?.nama_survei || '',
       maksud_perjalanan: form.maksud_perjalanan,
       biaya_transport: form.biaya_transport ? Number(form.biaya_transport) : (curWilayah?.rate_transport_lokal || 0),
+      grup_id: grup_id
     };
 
     setQueue(prev => [...prev, item]);
-    // Reset field petugas, tujuan_wilayah, biaya_transport (nomor surat, tanggal surat, survei, maksud tetap tersimpan)
     setForm(f => ({
       ...f,
       petugas_id: '',
@@ -84,26 +130,7 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
     }));
   }
 
-  function handleRemoveQueue(idx) {
-    setQueue(prev => prev.filter((_, i) => i !== idx));
-  }
-
-  async function handleCreateBatch() {
-    if (queue.length === 0) return;
-    setSaving(true); setError('');
-    const res = await api.post('/perjalanan/batch', { items: queue });
-    setSaving(false);
-    if (res.success) {
-      if (onBatchCreated) onBatchCreated(res.data);
-    } else {
-      setError(res.message);
-    }
-  }
-
-  async function save() {
-    if (!form.petugas_id || !form.tujuan_wilayah_id || !form.survei_id || !form.tanggal_tugas || !form.maksud_perjalanan.trim()) {
-      setError('Lengkapi semua field bertanda *'); return;
-    }
+  async function doSaveSingle(grup_id) {
     setSaving(true); setError('');
     const payload = {
       ...form,
@@ -111,13 +138,22 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
       tanggal_kembali: form.tanggal_tugas,
       survei_id: form.survei_id ? Number(form.survei_id) : null,
       biaya_transport: form.biaya_transport || 0,
+      grup_id: grup_id
     };
     const res = laporan
-      ? await api.put(`/perjalanan/${laporan.id}`, payload)
+      ? await api.put(/perjalanan/ + laporan.id, payload)
       : await api.post('/perjalanan', payload);
     setSaving(false);
     if (res.success) onSaved(res.data);
     else setError(res.message);
+  }
+
+  function handleAddToQueue() {
+    checkAndSave(true);
+  }
+
+  async function save() {
+    checkAndSave(false);
   }
 
   const selCls = inputCls;
@@ -130,7 +166,7 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
         <div>
           <label className={labelCls}>Petugas *</label>
           <select value={form.petugas_id} onChange={sf('petugas_id')} className={selCls}>
-            <option value="">— Pilih petugas —</option>
+            <option value="">Ã¢â‚¬â€ Pilih petugas Ã¢â‚¬â€</option>
             {petugas.map(p => <option key={p.id} value={p.id}>{p.nama} {p.jabatan ? `(${p.jabatan})` : `(${p.tipe})`}</option>)}
           </select>
         </div>
@@ -156,10 +192,10 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
         <div>
           <label className={labelCls}>Wilayah Tujuan *</label>
           <select value={form.tujuan_wilayah_id} onChange={sf('tujuan_wilayah_id')} className={selCls}>
-            <option value="">— Pilih wilayah —</option>
+            <option value="">Ã¢â‚¬â€ Pilih wilayah Ã¢â‚¬â€</option>
             {wilayah.map(w => (
               <option key={w.id} value={w.id}>
-                {w.desa_kelurahan} – {w.kecamatan}
+                {w.desa_kelurahan} Ã¢â‚¬â€œ {w.kecamatan}
                 {w.rate_transport_lokal ? ` (${formatRupiah(w.rate_transport_lokal)})` : ''}
               </option>
             ))}
@@ -168,7 +204,7 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
         <div>
           <label className={labelCls}>Survei Terkait *</label>
           <select value={form.survei_id} onChange={sf('survei_id')} className={selCls}>
-            <option value="">— Pilih survei terkait —</option>
+            <option value="">Ã¢â‚¬â€ Pilih survei terkait Ã¢â‚¬â€</option>
             {surveys.map(s => <option key={s.id} value={s.id}>{s.nama_survei}</option>)}
           </select>
         </div>
@@ -177,7 +213,7 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
       <div>
         <label className={labelCls}>Maksud / Tujuan Perjalanan *</label>
         <select value={form.maksud_perjalanan} onChange={sf('maksud_perjalanan')} className={selCls}>
-          <option value="">— Pilih maksud / tujuan kegiatan —</option>
+          <option value="">Ã¢â‚¬â€ Pilih maksud / tujuan kegiatan Ã¢â‚¬â€</option>
           {kegiatanList.map(k => (
             <option key={k.id} value={k.nama}>{k.nama}</option>
           ))}
@@ -188,12 +224,12 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
       </div>
 
       <div>
-        <label className={labelCls}>Biaya Transport (Rp) — auto dari rate wilayah tujuan</label>
+        <label className={labelCls}>Biaya Transport (Rp) Ã¢â‚¬â€ auto dari rate wilayah tujuan</label>
         <input type="number" min="0" value={form.biaya_transport} onChange={sf('biaya_transport')}
           className={inputCls} placeholder="Rp 0" />
       </div>
 
-      {/* ── Antrean Laporan Batch ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Antrean Laporan Batch Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {!laporan && (
         <div className="pt-2 space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -233,10 +269,10 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
                   <div key={item.queueId || idx} className="p-2.5 rounded-lg border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface flex items-center justify-between text-xs">
                     <div>
                       <p className="font-semibold text-text-primary dark:text-dark-text-primary">
-                        #{idx + 1} {item.nama_petugas} ➔ {item.desa_kelurahan} ({item.kecamatan})
+                        #{idx + 1} {item.nama_petugas} Ã¢Å¾â€ {item.desa_kelurahan} ({item.kecamatan})
                       </p>
                       <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary">
-                        📅 {item.tanggal_tugas} · 💰 {formatRupiah(item.biaya_transport)} · 📋 {item.nama_survei}
+                        Ã°Å¸â€œâ€¦ {item.tanggal_tugas} Ã‚Â· Ã°Å¸â€™Â° {formatRupiah(item.biaya_transport)} Ã‚Â· Ã°Å¸â€œâ€¹ {item.nama_survei}
                       </p>
                     </div>
                     <button
@@ -267,7 +303,7 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
           >
             {saving ? 'Memproses batch...' : (
               <>
-                🚀 Buat Semua Draft Laporan ({queue.length} Laporan)
+                Ã°Å¸Å¡â‚¬ Buat Semua Draft Laporan ({queue.length} Laporan)
               </>
             )}
           </button>
@@ -283,11 +319,28 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
           </button>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!mergeConfirm}
+        onConfirm={() => {
+          const grup_id = mergeConfirm.groupData[0].grup_id || mergeConfirm.groupData[0].id;
+          proceedSave(mergeConfirm.isBatchItem, grup_id);
+          setMergeConfirm(null);
+        }}
+        onCancel={() => {
+          proceedSave(mergeConfirm.isBatchItem, null);
+          setMergeConfirm(null);
+        }}
+        loading={saving}
+        message={mergeConfirm ? `Gabungkan dengan laporan tanggal ` + mergeConfirm.groupData.map(g => g.tanggal_tugas).join(', ') + `?` : ''}
+        confirmText="Ya, Gabungkan"
+        cancelText="Tidak, Pisahkan"
+      />
     </div>
   );
 }
 
-// ─── Step 2: Rundown Kegiatan ─────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Step 2: Rundown Kegiatan Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function getDefaultRundown(laporan) {
   const tgl = laporan?.tanggal_tugas || laporan?.tanggal_berangkat || new Date().toISOString().slice(0, 10);
   const kec = laporan?.wilayah?.kecamatan || 'Kecamatan Tujuan';
@@ -367,7 +420,7 @@ function Step2({ laporan, onSaved }) {
           className="btn-secondary text-xs py-1.5 px-3 rounded-lg"
           title="Kembalikan ke template awal 4 kegiatan"
         >
-          🔄 Reset Template
+          Ã°Å¸â€â€ž Reset Template
         </button>
       </div>
 
@@ -416,7 +469,7 @@ function Step2({ laporan, onSaved }) {
             <div>
               <label className={labelCls}>Keterangan Tambahan</label>
               <input value={row.deskripsi ?? ''} onChange={e => update(i, 'deskripsi', e.target.value)}
-                placeholder="Opsional — catatan tambahan" className={inputCls} />
+                placeholder="Opsional Ã¢â‚¬â€ catatan tambahan" className={inputCls} />
             </div>
           </div>
         ))}
@@ -439,6 +492,7 @@ function Step2({ laporan, onSaved }) {
           )}
         </button>
       </div>
+
     </div>
   );
 }
@@ -447,7 +501,7 @@ const DEFAULT_RINGKASAN = `Melakukan perjalanan pada hari (hari, tanggal). Beran
 Kegiatan ini dilaksanakan sebagai bagian dari surat tugas yang berlaku. Selama kegiatan pendataan, petugas melakukan persiapan menuju tempat pendataan, melaksanakan pendataan ke rumah tangga sampel terpilih (kegiatan survei) dan perjalanan pulang. Semua informasi pada kuesioner sudah berhasil diperoleh dan dicatat dengan lengkap. 
 Secara keseluruhan kegiatan pendataan di (Desa/Kelurahan atau Kecamatan) berjalan dengan lancar dan aman.`;
 
-// ─── Step 3: Dokumentasi & Ringkasan ─────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Step 3: Dokumentasi & Ringkasan Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function Step3({ laporan, onDone }) {
   const [fotos,     setFotos]     = useState(laporan?.foto ?? []);
   const [ringkasan, setRingkasan] = useState(() => (laporan?.ringkasan_hasil && laporan.ringkasan_hasil.trim()) ? laporan.ringkasan_hasil : DEFAULT_RINGKASAN);
@@ -488,7 +542,7 @@ function Step3({ laporan, onDone }) {
   async function finish() {
     setFinishing(true); setError('');
     try {
-      // POST ke selesai — response adalah zip binary
+      // POST ke selesai Ã¢â‚¬â€ response adalah zip binary
       const res = await fetch(`${API_BASE}/perjalanan/${laporan.id}/selesai`, {
         method: 'POST',
         credentials: 'include',
@@ -525,7 +579,7 @@ function Step3({ laporan, onDone }) {
 
       {/* Drop zone */}
       <div>
-        <label className={labelCls}>Foto Dokumentasi (maks. 10 foto, JPG/PNG/WEBP ≤ 5 MB)</label>
+        <label className={labelCls}>Foto Dokumentasi (maks. 10 foto, JPG/PNG/WEBP Ã¢â€°Â¤ 5 MB)</label>
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
@@ -543,7 +597,7 @@ function Step3({ laporan, onDone }) {
             </div>
           ) : (
             <>
-              <span className="text-2xl">📸</span>
+              <span className="text-2xl">Ã°Å¸â€œÂ¸</span>
               <p className="text-sm font-medium text-text-primary dark:text-dark-text-primary mt-1">Drag & drop atau klik</p>
               <p className="text-xs text-text-secondary dark:text-dark-text-secondary">{fotos.length}/10 foto</p>
             </>
@@ -580,7 +634,7 @@ function Step3({ laporan, onDone }) {
           </button>
         </div>
         <div className="p-3 mb-2 rounded-xl bg-accent-orange/8 dark:bg-dark-accent-orange/12 border border-accent-orange/20 dark:border-dark-accent-orange/30 text-xs text-accent-orange dark:text-dark-accent-orange flex items-start gap-2">
-          <span className="text-base leading-none">💡</span>
+          <span className="text-base leading-none">Ã°Å¸â€™Â¡</span>
           <p className="leading-relaxed">
             <strong>Perhatian:</strong> Silakan sesuaikan atau lengkapi bagian di dalam tanda kurung <strong>(...)</strong> pada teks deskripsi di bawah sebelum menekan tombol <em>Selesai & Download .zip</em>.
           </p>
@@ -596,11 +650,11 @@ function Step3({ laporan, onDone }) {
 
       {/* Info dokumen yang akan di-generate */}
       <div className="card p-4 bg-navy/3 dark:bg-dark-navy/6 border border-navy/12 dark:border-dark-navy/20">
-        <p className="text-xs font-semibold text-navy dark:text-dark-navy mb-2">📄 Dokumen yang akan di-generate:</p>
+        <p className="text-xs font-semibold text-navy dark:text-dark-navy mb-2">Ã°Å¸â€œâ€ž Dokumen yang akan di-generate:</p>
         <ul className="text-xs text-text-secondary dark:text-dark-text-secondary space-y-1">
-          <li>✅ Laporan Perjalanan Dinas.docx (termasuk jadwal & foto)</li>
-          <li>✅ Pernyataan Tidak Menggunakan Kendaraan Dinas.docx</li>
-          <li>✅ Daftar Pengeluaran Riil Transport Lokal.docx</li>
+          <li>Ã¢Å“â€¦ Laporan Perjalanan Dinas.docx (termasuk jadwal & foto)</li>
+          <li>Ã¢Å“â€¦ Pernyataan Tidak Menggunakan Kendaraan Dinas.docx</li>
+          <li>Ã¢Å“â€¦ Daftar Pengeluaran Riil Transport Lokal.docx</li>
         </ul>
         <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-2">
           Semua dokumen di-pack dalam 1 file .zip
@@ -623,11 +677,12 @@ function Step3({ laporan, onDone }) {
           )}
         </button>
       </div>
+
     </div>
   );
 }
 
-// ─── Halaman utama ────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Halaman utama Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const STEPS = ['Data Perjalanan', 'Rundown Kegiatan', 'Dokumentasi & Selesai'];
 
 export default function LaporanPerjalananPage() {
@@ -735,7 +790,7 @@ export default function LaporanPerjalananPage() {
       ]
     : [];
 
-  // ── Mode WIZARD ────────────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Mode WIZARD Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   if (mode === 'wizard') {
     return (
       <div className="space-y-0">
@@ -746,7 +801,7 @@ export default function LaporanPerjalananPage() {
               Laporan Perjalanan Dinas
             </h1>
             <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-0.5">
-              {laporan ? `Draft #${laporan.id}${laporan.nomor_surat ? ' — ' + laporan.nomor_surat : ''}` : 'Buat laporan baru'}
+              {laporan ? `Draft #${laporan.id}${laporan.nomor_surat ? ' Ã¢â‚¬â€ ' + laporan.nomor_surat : ''}` : 'Buat laporan baru'}
             </p>
           </div>
           <button onClick={exitWizard}
@@ -797,7 +852,7 @@ export default function LaporanPerjalananPage() {
     );
   }
 
-  // ── Mode LIST ──────────────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Mode LIST Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -883,29 +938,29 @@ export default function LaporanPerjalananPage() {
                           <p className="font-medium text-text-primary dark:text-dark-text-primary">{row.nama_petugas}</p>
                           <p className="text-xs text-text-secondary dark:text-dark-text-secondary capitalize">{row.jabatan || row.tipe_petugas}</p>
                         </td>
-                        <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary max-w-24 truncate">{row.nomor_surat || '—'}</td>
+                        <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary max-w-24 truncate">{row.nomor_surat || 'Ã¢â‚¬â€'}</td>
                         <td className="px-4 py-3">
                           <p className="text-sm text-text-primary dark:text-dark-text-primary">{row.desa_kelurahan}</p>
                           <p className="text-xs text-text-secondary dark:text-dark-text-secondary">{row.kecamatan}</p>
                         </td>
                         <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
-                          {row.tanggal_surat_tugas || '—'}
+                          {row.tanggal_surat_tugas || 'Ã¢â‚¬â€'}
                         </td>
                         <td className="px-4 py-3 text-xs font-mono font-medium text-text-primary dark:text-dark-text-primary whitespace-nowrap">
-                          {row.tanggal_tugas || row.tanggal_berangkat || '—'}
+                          {row.tanggal_tugas || row.tanggal_berangkat || 'Ã¢â‚¬â€'}
                         </td>
                         <td className="px-4 py-3 text-sm font-mono whitespace-nowrap text-text-primary dark:text-dark-text-primary">
                           {formatRupiah(row.biaya_transport)}
                         </td>
                         <td className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary max-w-28 truncate">
-                          {row.nama_survei || '—'}
+                          {row.nama_survei || 'Ã¢â‚¬â€'}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
                               {row.jumlah_rundown ?? 0} kegiatan
                             </span>
-                            <span className="text-text-secondary/30 dark:text-dark-text-secondary/30">·</span>
+                            <span className="text-text-secondary/30 dark:text-dark-text-secondary/30">Ã‚Â·</span>
                             <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
                               {row.jumlah_foto ?? 0} foto
                             </span>
@@ -977,6 +1032,10 @@ export default function LaporanPerjalananPage() {
         loading={deleting}
         message="Hapus laporan ini? File fisik juga akan dihapus."
       />
+
     </div>
   );
 }
+
+
+
