@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "archiver": "^8.0.0",
+    "iconv-lite": "^0.7.3"
+  }
+}

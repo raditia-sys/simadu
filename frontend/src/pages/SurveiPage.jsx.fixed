@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo } from 'react';
+?import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, API_BASE } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,16 +33,16 @@ const KATEGORI_META = {
   'Pelatihan':    { icon: '🎓', label: 'Pelatihan' },
   'SK/Surat':     { icon: '📜', label: 'SK/Surat' },
   'Laporan':      { icon: '📊', label: 'Laporan' },
-  'Umum':         { icon: '📁', label: 'Umum' },
+  'Umum':         { icon: '�?', label: 'Umum' },
 };
 
 function getFileIcon(mime = '', path = '') {
   if (mime.includes('pdf')) return '📄';
-  if (mime.includes('word') || mime.includes('document')) return '📝';
+  if (mime.includes('word') || mime.includes('document')) return '�?';
   if (mime.includes('sheet') || mime.includes('excel')) return '📊';
   if (mime.includes('presentation') || mime.includes('powerpoint')) return '📋';
-  if (mime.startsWith('image/')) return '🖼️';
-  if (mime.includes('zip') || mime.includes('rar') || mime.includes('7z')) return '🗜️';
+  if (mime.startsWith('image/')) return '🖼�?';
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('7z')) return '🗜�?';
   return '📄';
 }
 
@@ -201,7 +201,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     return sortedKeys.map((k) => ({
       kategori: k,
       items: groups[k],
-      meta: KATEGORI_META[k] || { icon: '📁', label: k },
+      meta: KATEGORI_META[k] || { icon: '�?', label: k },
     }));
   }, [dokumen]);
 
@@ -716,7 +716,7 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
               {/* Status Kosong */}
               {dokumen.length === 0 && !survei.tautan_entri_data && !survei.materi_dokumen && (
                 <div className="py-12 text-center text-sm text-text-secondary dark:text-dark-text-secondary">
-                  <span className="text-3xl block mb-2">📁</span>
+                  <span className="text-3xl block mb-2">�?</span>
                   Belum ada materi, tautan entri, atau dokumen terlampir untuk survei ini.
                 </div>
               )}
@@ -762,7 +762,6 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     </div>
   );
 }
-
 
 
 

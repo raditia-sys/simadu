@@ -19,13 +19,11 @@
   @unlink(__DIR__ . '/index.html');
   
   $zip = new ZipArchive;
-  $res = $zip->open('frontend_dist2.zip');
+  $res = $zip->open(__DIR__ . '/deploy_fix.zip');
   if ($res === TRUE) {
     for ($i = 0; $i < $zip->numFiles; $i++) {
         $filename = $zip->getNameIndex($i);
-        // powershell zip might have 'dist\'
-        $fixedName = str_replace(['dist\\', 'dist/'], '', $filename);
-        $fixedName = str_replace('\\', '/', $fixedName); // fix backslashes in subfolders
+        $fixedName = str_replace('\\', '/', $filename); // fix backslashes in subfolders
         
         $dest = __DIR__ . '/' . $fixedName;
         
@@ -42,5 +40,5 @@
     $zip->close();
     echo "Extracted successfully.\n";
   } else {
-    echo "Failed to open zip\n";
+    echo "Failed to open zip: " . $res . "\n";
   }
