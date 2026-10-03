@@ -121,6 +121,39 @@ class LaporanPerjalananController
     // ─────────────────────────────────────────────────────────────────────────
     // STORE — Tahap 1: simpan sebagai draft
     // ─────────────────────────────────────────────────────────────────────────
+        public static function checkMerge(): void
+    {
+        requireAuth();
+        $pdo = Database::connect();
+        
+        $petugas_id = (int)query('petugas_id');
+        $tujuan_wilayah_id = (int)query('tujuan_wilayah_id');
+        $survei_id = (int)query('survei_id');
+        $tanggal_tugas = query('tanggal_tugas');
+        
+        if (!$petugas_id || !$tujuan_wilayah_id || !$survei_id || !$tanggal_tugas) {
+            respond(false, null, 'Parameter tidak lengkap', 400);
+        }
+        
+        $bulan = date('m', strtotime($tanggal_tugas));
+        $tahun = date('Y', strtotime($tanggal_tugas));
+        
+        $stmt = $pdo->prepare('
+            SELECT id, grup_id, tanggal_tugas
+            FROM laporan_perjalanan_dinas
+            WHERE petugas_id = ? 
+              AND tujuan_wilayah_id = ?
+              AND survei_id = ?
+              AND MONTH(tanggal_tugas) = ?
+              AND YEAR(tanggal_tugas) = ?
+            ORDER BY tanggal_tugas ASC
+        ');
+        $stmt->execute([$petugas_id, $tujuan_wilayah_id, $survei_id, $bulan, $tahun]);
+        $laporans = $stmt->fetchAll();
+        
+        respond(true, $laporans, 'Berhasil ambil data merge');
+    }
+
     public static function store(): void
     {
         requireAuth();
@@ -171,6 +204,7 @@ class LaporanPerjalananController
             trim($body['maksud_perjalanan']),
             $biaya,
             $userId,
+            !empty($body['grup_id']) ? (int)$body['grup_id'] : null,
         ]);
         $id = (int)$pdo->lastInsertId();
 
@@ -873,3 +907,16 @@ class LaporanPerjalananController
         return self::terbilang((int)($n/1000000000)) . ' miliar' . ($n % 1000000000 ? ' ' . self::terbilang($n % 1000000000) : '');
     }
 }
+<<<<<<< Updated upstream
+=======
+
+
+
+
+
+
+
+
+
+
+

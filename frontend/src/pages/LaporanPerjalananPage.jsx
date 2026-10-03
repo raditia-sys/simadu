@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import WizardStepBar from '../components/perjalanan/WizardStepBar';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Pagination from '../components/ui/Pagination';
+import SearchableSelect from '../components/ui/SearchableSelect';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatRupiah(n) {
@@ -38,7 +39,7 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
   const [queue,  setQueue]  = useState([]);
-  const sf = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const sf = (k) => (e) => setForm(f => ({ ...f, [k]: (e && e.target) ? e.target.value : e }));
 
   // Auto-fill biaya dari rate wilayah
   useEffect(() => {
@@ -129,10 +130,12 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Petugas *</label>
-          <select value={form.petugas_id} onChange={sf('petugas_id')} className={selCls}>
-            <option value="">— Pilih petugas —</option>
-            {petugas.map(p => <option key={p.id} value={p.id}>{p.nama} {p.jabatan ? `(${p.jabatan})` : `(${p.tipe})`}</option>)}
-          </select>
+          <SearchableSelect
+            placeholder="- Pilih petugas -"
+            value={form.petugas_id}
+            onChange={sf('petugas_id')}
+            options={petugas.map(p => ({ value: p.id, label: p.nama + " (" + (p.jabatan || p.tipe) + ")" }))}
+          />
         </div>
         <div>
           <label className={labelCls}>Nomor Surat Tugas</label>
@@ -155,36 +158,35 @@ function Step1({ laporan, petugas, wilayah, surveys, kegiatanList = [], onSaved,
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Wilayah Tujuan *</label>
-          <select value={form.tujuan_wilayah_id} onChange={sf('tujuan_wilayah_id')} className={selCls}>
-            <option value="">— Pilih wilayah —</option>
-            {wilayah.map(w => (
-              <option key={w.id} value={w.id}>
-                {w.desa_kelurahan} – {w.kecamatan}
-                {w.rate_transport_lokal ? ` (${formatRupiah(w.rate_transport_lokal)})` : ''}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            placeholder="- Pilih wilayah -"
+            value={form.tujuan_wilayah_id}
+            onChange={sf('tujuan_wilayah_id')}
+            options={wilayah.map(w => ({ value: w.id, label: w.desa_kelurahan + " - " + w.kecamatan + (w.rate_transport_lokal ? " (" + formatRupiah(w.rate_transport_lokal) + ")" : "") }))}
+          />
         </div>
         <div>
           <label className={labelCls}>Survei Terkait *</label>
-          <select value={form.survei_id} onChange={sf('survei_id')} className={selCls}>
-            <option value="">— Pilih survei terkait —</option>
-            {surveys.map(s => <option key={s.id} value={s.id}>{s.nama_survei}</option>)}
-          </select>
+          <SearchableSelect
+            placeholder="- Pilih survei terkait -"
+            value={form.survei_id}
+            onChange={sf('survei_id')}
+            options={surveys.map(s => ({ value: s.id, label: s.nama_survei }))}
+          />
         </div>
       </div>
 
       <div>
         <label className={labelCls}>Maksud / Tujuan Perjalanan *</label>
-        <select value={form.maksud_perjalanan} onChange={sf('maksud_perjalanan')} className={selCls}>
-          <option value="">— Pilih maksud / tujuan kegiatan —</option>
-          {kegiatanList.map(k => (
-            <option key={k.id} value={k.nama}>{k.nama}</option>
-          ))}
-          {form.maksud_perjalanan && !kegiatanList.some(k => k.nama === form.maksud_perjalanan) && (
-            <option value={form.maksud_perjalanan}>{form.maksud_perjalanan}</option>
-          )}
-        </select>
+        <SearchableSelect
+          placeholder="- Pilih maksud / tujuan kegiatan -"
+          value={form.maksud_perjalanan}
+          onChange={sf('maksud_perjalanan')}
+          options={[
+            ...kegiatanList.map(k => ({ value: k.nama, label: k.nama })),
+            ...(form.maksud_perjalanan && !kegiatanList.some(k => k.nama === form.maksud_perjalanan) ? [{ value: form.maksud_perjalanan, label: form.maksud_perjalanan }] : [])
+          ]}
+        />
       </div>
 
       <div>
@@ -821,11 +823,13 @@ export default function LaporanPerjalananPage() {
       <div className="flex items-end gap-2 flex-wrap">
         <div>
           <label className={labelCls}>Petugas</label>
-          <select value={fPetugas} onChange={e => setFPetugas(e.target.value)}
-            className="text-sm px-3 py-1.5 rounded-xl border border-border-soft dark:border-dark-border-soft bg-surface dark:bg-dark-surface text-text-primary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-navy/20 transition-all">
-            <option value="">Semua Petugas</option>
-            {petugas.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
-          </select>
+          <SearchableSelect
+            placeholder="Semua Petugas"
+            value={fPetugas}
+            onChange={setFPetugas}
+            options={petugas.map(p => ({ value: p.id, label: p.nama }))}
+            className="min-w-[150px] z-[55]"
+          />
         </div>
         <div>
           <label className={labelCls}>Status</label>

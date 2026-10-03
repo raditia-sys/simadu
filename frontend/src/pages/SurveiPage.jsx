@@ -107,7 +107,9 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
   const [dokumen, setDokumen] = useState([]);
 
   // ── Tab aktif ─────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState('progress'); // 'progress' | 'petugas' | 'dokumen'
+  const defaultTab = (kategori === 'Sensus' || (surveiNama || '').toLowerCase().includes('sensus ekonomi')) ? 'dokumen' : 'progress';
+  const [tab, setTab] = useState(defaultTab); // 'progress' | 'petugas' | 'dokumen'
+
 
   // ── Load survei info ───────────────────────────────────────────────────────
   const loadSurveiInfo = useCallback(() => {
@@ -361,7 +363,11 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
               { key: 'progress', label: 'Monitoring Progres' },
               { key: 'petugas',  label: 'Data Petugas' },
               { key: 'dokumen',  label: 'Materi & Dokumen' },
-            ].map(({ key, label }) => (
+            ].filter(t => {
+              const isSensusEkonomi = (survei?.nama_survei || '').toLowerCase().includes('sensus ekonomi') || (kategori || '').toLowerCase() === 'sensus';
+              if (isSensusEkonomi && (t.key === 'progress' || t.key === 'petugas')) return false;
+              return true;
+            }).map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
@@ -762,3 +768,10 @@ export default function SurveiPage({ surveiNama, kodeSurvei, kategori }) {
     </div>
   );
 }
+
+
+
+
+
+
+
