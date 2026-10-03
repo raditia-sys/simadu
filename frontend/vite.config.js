@@ -8,6 +8,8 @@ export default defineConfig({
 
   build: {
     target: 'esnext',
+    // Folder aset diganti dari "assets" ke "static" agar URL baru (menghindari cache CDN lama).
+    assetsDir: 'static',
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {

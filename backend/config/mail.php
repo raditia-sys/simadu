@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * SIMADU Mail Configuration — SMTP Hostinger
  */

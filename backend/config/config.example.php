@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * SIMADU — Konfigurasi Aplikasi (Template untuk Hosting / Server)
  * Salin file ini menjadi 'config.php' lalu sesuaikan kredensial hosting.

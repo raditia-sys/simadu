@@ -10,12 +10,22 @@
   # 2. Route uploads
   RewriteRule ^uploads/(.*)$ backend/uploads/$1 [L]
 
-  # 3. Route API dan semua request SPA lainnya ke index.php
-  RewriteRule ^(.*)$ index.php [QSA,L]
+  # 3. Route API ke index.php
+  RewriteRule ^api(/.*)?$ index.php [QSA,L]
+
+  # 4. SPA: semua route lain ke index.html langsung (bukan index.php!)
+  RewriteRule ^(.*)$ index.html [QSA,L]
 </IfModule>
 
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Pastikan file statis dilayani dengan MIME type yang benar
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType image/svg+xml .svg
 </IfModule>
