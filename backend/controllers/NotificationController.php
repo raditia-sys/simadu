@@ -177,7 +177,7 @@ class NotificationController
         }
     }
 
-    /** Cek deadline dan kirim notifikasi otomatis (Web Push & Email Digest) */
+    /** Cek deadline dan kirim notifikasi otomatis (Web Push & Email Digest) via API / Cron Webhook */
     public static function checkDeadlines(): void
     {
         $cronKey = query('key');
@@ -185,6 +185,50 @@ class NotificationController
         if ($cronKey !== $validKey) {
             requireAuth();
         }
+
+        $res = self::executeDeadlineCheck();
+
+        respond(true, [
+            'tasks_found'      => $res['tasks_found'],
+            'tasks_notified'   => $res['tasks_notified'],
+            'total_pushes'     => $res['total_pushes'],
+            'total_emails'     => $res['total_emails'],
+        ], "Pengecekan selesai. Terkirim {$res['total_pushes']} Web Push dan {$res['total_emails']} Email Rekap Harian.");
+    }
+
+    /** Auto-check harian non-blocking yang dipanggil saat ada request web setelah pukul 08:00 WIB */
+    public static function autoCheckDaily(): void
+    {
+        // Pastikan hanya berjalan setelah jam 08:00 WIB
+        $currentHour = (int)date('G');
+        if ($currentHour < 8) {
+            return;
+        }
+
+        $today = date('Y-m-d');
+        $lockDir = ROOT_DIR . '/uploads';
+        if (!is_dir($lockDir)) {
+            @mkdir($lockDir, 0755, true);
+        }
+        $lockFile = $lockDir . '/last_daily_cron.txt';
+
+        if (file_exists($lockFile) && trim((string)@file_get_contents($lockFile)) === $today) {
+            return;
+        }
+
+        // Tulis flag hari ini segera untuk mencegah eksekusi ganda konkuren
+        @file_put_contents($lockFile, $today);
+
+        try {
+            self::executeDeadlineCheck();
+        } catch (\Throwable $e) {
+            error_log('SIMADU AutoCheckDaily Error: ' . $e->getMessage());
+        }
+    }
+
+    /** Eksekusi pemindaian deadline, pengiriman Web Push, dan Email Digest */
+    public static function executeDeadlineCheck(): array
+    {
         $pdo = Database::connect();
 
         // Cari tugas belum selesai yang mendekati deadline (H-5, H-3, H-1, H-0)
@@ -209,7 +253,12 @@ class NotificationController
         $tasks = $stmt->fetchAll();
 
         if (empty($tasks)) {
-            respond(true, ['notified_tasks' => 0, 'tasks' => []], 'Tidak ada tugas yang mendekati deadline (H-5, H-3, H-1, Hari H) saat ini.');
+            return [
+                'tasks_found'    => 0,
+                'tasks_notified' => 0,
+                'total_pushes'   => 0,
+                'total_emails'   => 0,
+            ];
         }
 
         // 1. KIRIM WEB PUSH NOTIFICATION
@@ -319,12 +368,12 @@ class NotificationController
             }
         }
 
-        respond(true, [
-            'tasks_found'      => count($tasks),
-            'tasks_notified'   => $sentTasksCount,
-            'total_pushes'     => $totalPushes,
-            'total_emails'     => $emailSentCount,
-        ], "Pengecekan selesai. Terkirim $totalPushes Web Push dan $emailSentCount Email Rekap Harian.");
+        return [
+            'tasks_found'    => count($tasks),
+            'tasks_notified' => $sentTasksCount,
+            'total_pushes'   => $totalPushes,
+            'total_emails'   => $emailSentCount,
+        ];
     }
 
     /** Helper internal kirim push menggunakan Minishlink\WebPush */

@@ -51,102 +51,108 @@ $stmtSubs = $pdo->query("
 ");
 $allSubs = $stmtSubs->fetchAll(PDO::FETCH_ASSOC);
 
-if (empty($allSubs)) {
-    echo "[" . date('Y-m-d H:i:s') . "] Belum ada perangkat admin yang terdaftar pada Web Push.\n";
-    exit(0);
-}
+$webPushSent = 0;
 
-$vapidConfig = file_exists(ROOT_DIR . '/config/vapid.php') ? require ROOT_DIR . '/config/vapid.php' : null;
-if (!$vapidConfig || empty($vapidConfig['publicKey'])) {
-    echo "[" . date('Y-m-d H:i:s') . "] Konfigurasi VAPID belum tersedia.\n";
-    exit(1);
-}
+if (!empty($allSubs)) {
+    $vapidConfig = file_exists(ROOT_DIR . '/config/vapid.php') ? require ROOT_DIR . '/config/vapid.php' : null;
+    if ($vapidConfig && !empty($vapidConfig['publicKey'])) {
+        $auth = [
+            'VAPID' => [
+                'subject'    => $vapidConfig['subject'] ?? 'mailto:admin.simadu@bps.go.id',
+                'publicKey'  => $vapidConfig['publicKey'],
+                'privateKey' => $vapidConfig['privateKey'],
+            ],
+        ];
 
-$auth = [
-    'VAPID' => [
-        'subject'    => $vapidConfig['subject'] ?? 'mailto:admin.simadu@bps.go.id',
-        'publicKey'  => $vapidConfig['publicKey'],
-        'privateKey' => $vapidConfig['privateKey'],
-    ],
-];
+        try {
+            $webPush = new \Minishlink\WebPush\WebPush($auth);
+            $webPush->setReuseVAPIDHeaders(true);
 
-$webPush = new \Minishlink\WebPush\WebPush($auth);
-$webPush->setReuseVAPIDHeaders(true);
+            foreach ($tasks as $task) {
+                $sisaHari = (int)$task['sisa_hari'];
+                $threshold = match ($sisaHari) {
+                    5 => 'H-5',
+                    3 => 'H-3',
+                    1 => 'H-1',
+                    0 => 'H-0',
+                    default => "H-$sisaHari",
+                };
 
-$notifiedCount = 0;
+                $labelStatus = match ($sisaHari) {
+                    5 => '5 hari lagi (H-5)',
+                    3 => '3 hari lagi (H-3)',
+                    1 => 'besok (H-1)',
+                    0 => 'HARI INI (Hari H)',
+                    default => "$sisaHari hari lagi",
+                };
 
-foreach ($tasks as $task) {
-    $sisaHari = (int)$task['sisa_hari'];
-    $threshold = match ($sisaHari) {
-        5 => 'H-5',
-        3 => 'H-3',
-        1 => 'H-1',
-        0 => 'H-0',
-        default => "H-$sisaHari",
-    };
+                $tglDeadline = date('d/m/Y', strtotime($task['deadline']));
 
-    $labelStatus = match ($sisaHari) {
-        5 => '5 hari lagi (H-5)',
-        3 => '3 hari lagi (H-3)',
-        1 => 'besok (H-1)',
-        0 => 'HARI INI (Hari H)',
-        default => "$sisaHari hari lagi",
-    };
+                // Filter target subscriptions yang belum pernah menerima log notifikasi ini
+                $targetSubs = [];
+                foreach ($allSubs as $sub) {
+                    $stmtLog = $pdo->prepare("
+                        SELECT id FROM notification_logs
+                        WHERE tugas_id = ? AND user_id = ? AND threshold = ? AND tipe = 'webpush'
+                    ");
+                    $stmtLog->execute([(int)$task['id'], (int)$sub['user_id'], $threshold]);
+                    if (!$stmtLog->fetch()) {
+                        $targetSubs[] = $sub;
+                    }
+                }
 
-    $tglDeadline = date('d/m/Y', strtotime($task['deadline']));
+                if (empty($targetSubs)) {
+                    continue;
+                }
 
-    // Filter target subscriptions yang belum pernah menerima log notifikasi ini
-    $targetSubs = [];
-    foreach ($allSubs as $sub) {
-        $stmtLog = $pdo->prepare("
-            SELECT id FROM notification_logs
-            WHERE tugas_id = ? AND user_id = ? AND threshold = ? AND tipe = 'webpush'
-        ");
-        $stmtLog->execute([(int)$task['id'], (int)$sub['user_id'], $threshold]);
-        if (!$stmtLog->fetch()) {
-            $targetSubs[] = $sub;
+                $wilayah = $task['kecamatan'] . ($task['desa_kelurahan'] ? ' - ' . $task['desa_kelurahan'] : '');
+                $title = "⚠️ Deadline {$threshold}: {$task['nama_survei']}";
+                $body = "Batas akhir {$task['nama_survei']} di {$wilayah} adalah {$labelStatus} ({$tglDeadline}). Progres: {$task['sampel_selesai']}/{$task['target_sampel']} sampel.";
+
+                $payload = json_encode([
+                    'title' => $title,
+                    'body'  => $body,
+                    'icon'  => '/simadu/logo_bps.png',
+                    'badge' => '/simadu/favicon.png',
+                    'data'  => [
+                        'url'      => '/simadu/kelola-tugas',
+                        'tugas_id' => $task['id']
+                    ]
+                ]);
+
+                foreach ($targetSubs as $sub) {
+                    $subscription = \Minishlink\WebPush\Subscription::create([
+                        'endpoint'        => $sub['endpoint'],
+                        'publicKey'       => $sub['p256dh_key'],
+                        'authToken'       => $sub['auth_token'],
+                        'contentEncoding' => 'aesgcm',
+                    ]);
+                    $webPush->queueNotification($subscription, $payload);
+                }
+
+                $distinctUsers = array_unique(array_column($targetSubs, 'user_id'));
+                $stmtInsertLog = $pdo->prepare("
+                    INSERT INTO notification_logs (tugas_id, user_id, tipe, threshold, sent_at)
+                    VALUES (?, ?, 'webpush', ?, NOW())
+                ");
+                foreach ($distinctUsers as $uid) {
+                    $stmtInsertLog->execute([(int)$task['id'], (int)$uid, $threshold]);
+                }
+
+                $notifiedCount++;
+            }
+
+            foreach ($webPush->flush() as $report) {
+                if ($report->isSuccess()) {
+                    $webPushSent++;
+                }
+            }
+        } catch (\Throwable $e) {
+            echo "[" . date('Y-m-d H:i:s') . "] Web Push error: " . $e->getMessage() . "\n";
         }
     }
-
-    if (empty($targetSubs)) {
-        continue;
-    }
-
-    $wilayah = $task['kecamatan'] . ($task['desa_kelurahan'] ? ' - ' . $task['desa_kelurahan'] : '');
-    $title = "⚠️ Deadline {$threshold}: {$task['nama_survei']}";
-    $body = "Batas akhir {$task['nama_survei']} di {$wilayah} adalah {$labelStatus} ({$tglDeadline}). Progres: {$task['sampel_selesai']}/{$task['target_sampel']} sampel.";
-
-    $payload = json_encode([
-        'title' => $title,
-        'body'  => $body,
-        'icon'  => '/simadu/logo_bps.png',
-        'badge' => '/simadu/favicon.png',
-        'data'  => [
-            'url'      => '/simadu/kelola-tugas',
-            'tugas_id' => $task['id']
-        ]
-    ]);
-
-    foreach ($targetSubs as $sub) {
-        $subscription = \Minishlink\WebPush\Subscription::create([
-            'endpoint'        => $sub['endpoint'],
-            'publicKey'       => $sub['p256dh_key'],
-            'authToken'       => $sub['auth_token'],
-            'contentEncoding' => 'aesgcm',
-        ]);
-        $webPush->queueNotification($subscription, $payload);
-    }
-
-    $distinctUsers = array_unique(array_column($targetSubs, 'user_id'));
-    $stmtInsertLog = $pdo->prepare("
-        INSERT INTO notification_logs (tugas_id, user_id, tipe, threshold, sent_at)
-        VALUES (?, ?, 'webpush', ?, NOW())
-    ");
-    foreach ($distinctUsers as $uid) {
-        $stmtInsertLog->execute([(int)$task['id'], (int)$uid, $threshold]);
-    }
-
-    $notifiedCount++;
+} else {
+    echo "[" . date('Y-m-d H:i:s') . "] Belum ada perangkat admin yang terdaftar pada Web Push. Melanjutkan ke pengiriman email...\n";
 }
 
 // 3. Kirim Daily Email Digest ke semua admin yang memiliki email terdaftar
@@ -174,4 +180,4 @@ foreach ($emailUsers as $eUser) {
     }
 }
 
-echo "[" . date('Y-m-d H:i:s') . "] Pengecekan selesai. Berhasil mengirim $sentSuccess Web Push dan $emailSentCount Email Rekap Harian untuk $notifiedCount tugas.\n";
+echo "[" . date('Y-m-d H:i:s') . "] Pengecekan selesai. Berhasil mengirim $webPushSent Web Push dan $emailSentCount Email Rekap Harian untuk $notifiedCount tugas.\n";

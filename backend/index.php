@@ -7,6 +7,8 @@
  */
 declare(strict_types=1);
 
+date_default_timezone_set('Asia/Jakarta');
+
 define('ROOT_DIR', __DIR__);
 
 $appConfig = file_exists(ROOT_DIR . '/config/config.php') ? require ROOT_DIR . '/config/config.php' : [];
@@ -61,6 +63,11 @@ require ROOT_DIR . '/controllers/LogAktivitasController.php';
 require ROOT_DIR . '/controllers/LaporanPerjalananController.php';
 require ROOT_DIR . '/controllers/UserController.php';
 require ROOT_DIR . '/controllers/NotificationController.php';
+
+// Auto-check harian jika request web masuk pada/setelah pukul 08:00 WIB
+if (PHP_SAPI !== 'cli' && (!isset($_GET['key']) || $_GET['key'] !== 'bps1504_cron_key')) {
+    NotificationController::autoCheckDaily();
+}
 // Composer autoload (PhpSpreadsheet dll.) — di-load lazy di dalam controller bila dibutuhkan
 // require ROOT_DIR . '/vendor/autoload.php'; // jangan di-load global agar request biasa tetap ringan
 
